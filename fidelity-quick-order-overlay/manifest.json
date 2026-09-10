@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Fidelity Quick Order Overlay",
+  "version": "1.2.4",
+  "description": "Floating overlay for Fidelity. Paste a screenshot or text block; auto-extracts symbol/shares/price/account and submits a SELL order. Screenshot reading runs fully local (Tesseract.js OCR) — no external API, no API key.",
+  "permissions": ["scripting", "activeTab", "clipboardRead", "offscreen"],
+  "host_permissions": [
+    "https://digital.fidelity.com/*",
+    "https://*.fidelity.com/*",
+    "https://query1.finance.yahoo.com/*",
+    "https://query2.finance.yahoo.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://digital.fidelity.com/*",
+        "https://*.fidelity.com/*"
+      ],
+      "js": ["fidelity-overlay.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "Fidelity Quick Order"
+  },
+  "icons": {},
+  "web_accessible_resources": [
+    {
+      "resources": ["vendor/tesseract/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}
