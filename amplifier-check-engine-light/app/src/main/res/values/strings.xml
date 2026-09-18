@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Amplifier Check</string>
+
+    <string name="channel_reminder_name">Daily check reminder</string>
+    <string name="channel_reminder_desc">The once-a-day prompt to record your check.</string>
+    <string name="channel_recording_name">Recording in progress</string>
+    <string name="channel_recording_desc">Shown only while the microphone is actively recording.</string>
+    <string name="channel_result_name">Daily result</string>
+    <string name="channel_result_desc">Lets you know when today\'s check is ready.</string>
+
+    <string name="reminder_notification_title">Time for today\'s check</string>
+    <string name="reminder_notification_body">Tap to record a quick 15-30 second voice sample.</string>
+
+    <string name="recording_notification_title">Recording your check</string>
+    <string name="recording_notification_body">Keep talking naturally until it stops.</string>
+
+    <string name="result_notification_title">Today\'s check is ready</string>
+    <string name="result_notification_body_green">All clear today.</string>
+    <string name="result_notification_body_yellow">Worth keeping an eye on today.</string>
+    <string name="result_notification_body_red">Elevated signal today. Take a look.</string>
+    <string name="result_notification_body_gray">We couldn\'t get a clean read. Open the app to retry.</string>
+</resources>

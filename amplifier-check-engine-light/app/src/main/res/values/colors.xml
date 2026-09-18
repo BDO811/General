@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background_near_black">#050505</color>
+    <color name="accent_cyan">#22D3EE</color>
+    <color name="accent_emerald">#10B981</color>
+</resources>
