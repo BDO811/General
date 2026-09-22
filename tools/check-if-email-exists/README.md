@@ -27,6 +27,12 @@ mailbox exists. Set `VERIFY_PROVIDER` and `VERIFY_API_KEY` in `config.env`:
 | `abstract` | 100 free credits a month, 1 request/second, good for trying it |
 | `millionverifier` | cheap bulk, roughly $2.50 per 1000 |
 
+Confirm a new key works before running a list. This uses exactly one credit:
+
+```bash
+./verify-api.py --test
+```
+
 Credits are money, so `verify-api.py` never verifies the same address twice (it
 resumes from its own output), prints the count and estimated cost and refuses to
 run without `--yes`, stops on an auth rejection rather than working through the

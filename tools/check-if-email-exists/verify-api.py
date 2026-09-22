@@ -67,12 +67,26 @@ def check_millionverifier(email, key):
 
 
 def norm_abstract(d):
-    """Map Abstract's response onto safe / risky / invalid / unknown."""
-    def flag(name):
-        v = d.get(name) or {}
-        return v.get("value") if isinstance(v, dict) else None
+    """Map Abstract's response onto safe / risky / invalid / unknown.
 
-    deliver = (d.get("deliverability") or "").upper()
+    Handles the documented v1 flat shape, and defensively the nested shape their
+    marketing pages show, in case the account is provisioned on a newer schema.
+    """
+    flat = d
+    if "email_deliverability" in d and isinstance(d["email_deliverability"], dict):
+        flat = {}
+        for block in d.values():
+            if isinstance(block, dict):
+                flat.update(block)
+        flat.setdefault("deliverability", (d["email_deliverability"] or {}).get("status"))
+
+    def flag(name):
+        v = flat.get(name)
+        if isinstance(v, dict):
+            return v.get("value")
+        return v if isinstance(v, bool) else None
+
+    deliver = (flat.get("deliverability") or "").upper()
     if flag("is_disposable_email"):
         return "invalid", "disposable"
     if deliver == "UNDELIVERABLE":
@@ -109,10 +123,60 @@ PROVIDERS = {
 EXHAUSTED = ("insufficient", "credit", "quota", "limit reached", "no credits")
 
 
+
+def self_test(email):
+    """Confirm the key works, using exactly one credit."""
+    provider = os.environ.get("VERIFY_PROVIDER", "").lower()
+    key = os.environ.get("VERIFY_API_KEY", "")
+    if provider not in PROVIDERS:
+        print(f"VERIFY_PROVIDER is '{provider or 'unset'}', expected one of: "
+              f"{', '.join(PROVIDERS)}", file=sys.stderr)
+        return 2
+    if not key:
+        print("VERIFY_API_KEY is not set. Put it in config.env.", file=sys.stderr)
+        return 2
+
+    check, norm = PROVIDERS[provider]
+    print(f"provider   {provider}")
+    print(f"key        ...{key[-6:]}  ({len(key)} chars)")
+    print(f"test       {email}   this uses one credit")
+    try:
+        raw = check(email, key)
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")[:400]
+        except Exception:
+            pass
+        print(f"\n  HTTP {e.code}: {body or e}", file=sys.stderr)
+        if e.code in (401, 403):
+            print("  The key was rejected. Check you copied the Email Validation key,"
+                  "\n  not a key for one of Abstract's other APIs. Each API has its own.",
+                  file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"\n  request failed: {e}", file=sys.stderr)
+        return 1
+
+    verdict, reason = norm(raw)
+    print(f"\n  verdict  {verdict}  ({reason})")
+    print(f"  raw      {json.dumps(raw)[:400]}")
+    if verdict in ("safe", "risky", "invalid"):
+        print("\n  Key works. You are ready to run a real list.")
+        return 0
+    print("\n  Key works but the verdict came back unknown. That can be normal for"
+          "\n  this address. Try --test with a different one before concluding.")
+    return 0
+
+
 def main(argv):
     load_config()
     args = [a for a in argv[1:] if not a.startswith("--")]
     flags = {a for a in argv[1:] if a.startswith("--")}
+
+    if "--test" in flags:
+        return self_test(args[0] if args else "support@github.com")
+
     if not args:
         print(__doc__.strip(), file=sys.stderr)
         return 2
