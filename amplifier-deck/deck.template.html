@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amplifier Health</title>
+<style>
+__FONTS__
+
+:root{
+  --bg:#050505;
+  --surface:#0a0a0a;
+  --surface-2:#18181b;
+  --cyan:#22d3ee;
+  --emerald:#10b981;
+  --text:#fafafa;
+  --muted:rgba(255,255,255,.70);
+  --faint:rgba(255,255,255,.42);
+  --hair:rgba(255,255,255,.12);
+  --serif:"Cormorant Garamond",Cormorant,Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--serif);
+  /* Cormorant defaults to old-style figures; stats need lining figures */
+  font-variant-numeric:lining-nums;
+  font-feature-settings:"lnum" 1,"tnum" 0;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ---------- deck shell ---------- */
+.deck{width:100%}
+.slide{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  min-height:360px;
+  overflow:hidden;
+  background:var(--bg);
+  display:flex;align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  container-type:inline-size;
+}
+
+/* ---------- layers ---------- */
+.bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+  opacity:.10;                 /* imagery at 10% */
+  z-index:0;
+}
+.bg.shift{filter:saturate(.45) hue-rotate(155deg)}
+.bg.cool{filter:saturate(.7) hue-rotate(35deg)}
+.vign{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 45%,rgba(5,5,5,0) 30%,rgba(5,5,5,.72) 100%),
+    linear-gradient(180deg,rgba(5,5,5,.55) 0%,rgba(5,5,5,0) 22%,rgba(5,5,5,0) 74%,rgba(5,5,5,.75) 100%);
+}
+.gridlines{
+  position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.5;
+  background-image:
+    linear-gradient(to right,rgba(255,255,255,.055) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:8.333% 11.111%;
+  mask-image:radial-gradient(130% 100% at 50% 50%,#000 35%,transparent 92%);
+  -webkit-mask-image:radial-gradient(130% 100% at 50% 50%,#000 35%,transparent 92%);
+}
+.glow{position:absolute;z-index:1;border-radius:50%;pointer-events:none;filter:blur(70px)}
+.g-cy{background:radial-gradient(circle,rgba(34,211,238,.20),transparent 68%)}
+.g-em{background:radial-gradient(circle,rgba(16,185,129,.17),transparent 68%)}
+
+/* ---------- content ---------- */
+.inner{
+  position:relative;z-index:3;
+  width:100%;
+  padding:0 8.5cqw;
+}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:1.02cqw;
+  letter-spacing:.42em;
+  text-transform:uppercase;
+  color:var(--cyan);
+  display:flex;align-items:center;gap:.9cqw;
+}
+.eyebrow::before{
+  content:"";width:2.6cqw;height:1px;
+  background:linear-gradient(90deg,var(--cyan),rgba(34,211,238,0));
+}
+h1{
+  font-weight:300;
+  font-size:5.1cqw;
+  line-height:1.09;
+  letter-spacing:-.012em;
+}
+h2{font-weight:300;font-size:4.2cqw;line-height:1.08;letter-spacing:-.01em}
+.lede{
+  font-size:1.72cqw;line-height:1.55;color:var(--muted);
+  font-weight:300;max-width:52cqw;
+}
+.accent{color:var(--cyan)}
+.accent-em{color:var(--emerald)}
+.ital{font-style:italic;color:var(--muted)}
+.rule{height:1px;background:linear-gradient(90deg,var(--hair),transparent);margin:2.4cqw 0}
+
+/* ---------- slide footer ---------- */
+.sfoot{
+  position:absolute;z-index:3;left:8.5cqw;right:8.5cqw;bottom:4.6cqw;
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:.86cqw;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--faint);
+}
+.sfoot .num{color:rgba(255,255,255,.3)}
+
+/* ---------- slide 1 ---------- */
+.s1 h1{max-width:74cqw}
+.s1 .kicker{
+  margin-top:3.2cqw;font-family:var(--mono);font-size:1.02cqw;
+  letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+}
+
+/* ---------- slide 2 : logo ---------- */
+.s2 .inner{display:flex;flex-direction:column;align-items:center;text-align:center}
+.logo{width:41cqw;max-width:660px;height:auto;display:block}
+.logo svg{width:100%;height:auto;display:block}
+.s2 .tag{
+  margin-top:3.4cqw;font-size:2.35cqw;font-weight:300;color:var(--text);
+  letter-spacing:.005em;
+}
+.s2 .tag em{font-style:italic;color:var(--cyan)}
+.s2 .sub{margin-top:1.5cqw;font-size:1.42cqw;color:var(--muted);font-weight:300;max-width:56cqw}
+.s2 .nameplate{
+  margin-top:1.9cqw;font-family:var(--mono);font-weight:300;
+  font-size:1.34cqw;letter-spacing:.62em;text-transform:uppercase;
+  color:var(--muted);text-indent:.62em;
+}
+.s2 .hair{width:9cqw;height:1px;margin:3cqw auto 0;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+
+/* ---------- slide 3 ---------- */
+.s3 .cols{display:grid;grid-template-columns:1.18fr .82fr;gap:5.2cqw;align-items:center}
+.s3 h2{font-size:3.72cqw;line-height:1.14}
+.pillars{display:flex;flex-direction:column;gap:1.5cqw}
+.pillar{
+  position:relative;padding:1.45cqw 1.6cqw 1.45cqw 2.3cqw;
+  background:linear-gradient(90deg,rgba(24,24,27,.82),rgba(10,10,10,.42));
+  border:1px solid var(--hair);border-radius:3px;
+  backdrop-filter:blur(3px);
+}
+.pillar::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,var(--cyan),var(--emerald));
+}
+.pillar .pl{
+  font-family:var(--mono);font-size:.82cqw;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--cyan);
+}
+.pillar .pt{font-size:1.72cqw;margin-top:.45cqw;font-weight:400}
+.pillar .pd{font-size:1.06cqw;color:var(--muted);margin-top:.3cqw;line-height:1.5;font-family:var(--mono);font-weight:300;letter-spacing:.005em}
+.statline{display:flex;gap:3.6cqw;margin-top:2.6cqw}
+.stat .sv{font-size:2.9cqw;font-weight:300;color:var(--text);line-height:1}
+.stat .sv span{color:var(--cyan)}
+.stat .sl{
+  font-family:var(--mono);font-size:.78cqw;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--faint);margin-top:.55cqw;
+}
+
+/* ---------- slide 4 ---------- */
+.s4 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:4cqw}
+.s4 .metrics{display:flex;gap:2.9cqw;flex-shrink:0}
+.slide,.inner{max-width:100%}
+.s4 .metrics .sv{font-size:2.5cqw;font-weight:300}
+.s4 .metrics .sv span{color:var(--emerald)}
+.panel{
+  margin-top:2.5cqw;display:grid;grid-template-columns:1.35fr 1fr;gap:3.4cqw;
+}
+.pane-l .plabel,.pane-r .plabel{
+  font-family:var(--mono);font-size:.8cqw;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--faint);
+  padding-bottom:.85cqw;border-bottom:1px solid var(--hair);margin-bottom:1.35cqw;
+  display:flex;justify-content:space-between;
+}
+.chips{display:flex;flex-wrap:wrap;gap:.5cqw}
+.chip{
+  font-family:var(--mono);font-size:.84cqw;font-weight:300;
+  padding:.44cqw .82cqw;border-radius:2px;
+  border:1px solid rgba(34,211,238,.26);
+  background:rgba(34,211,238,.055);
+  color:rgba(255,255,255,.86);letter-spacing:.02em;white-space:nowrap;
+}
+.tier{margin-bottom:1.25cqw}
+.tier .tl{
+  font-family:var(--mono);font-size:.76cqw;letter-spacing:.22em;
+  text-transform:uppercase;display:flex;align-items:center;gap:.5cqw;margin-bottom:.5cqw;
+}
+.dot{width:.42cqw;height:.42cqw;border-radius:50%;flex-shrink:0}
+.d-est{background:var(--emerald);box-shadow:0 0 8px rgba(16,185,129,.9)}
+.d-emg{background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,.9)}
+.d-inv{background:rgba(255,255,255,.4)}
+.t-est{color:var(--emerald)}.t-emg{color:var(--cyan)}.t-inv{color:var(--faint)}
+.tier .tv{font-size:1.04cqw;color:var(--muted);line-height:1.55;font-family:var(--mono);font-weight:300}
+
+/* ---------- slide 5 ---------- */
+.s5 .inner{text-align:center;display:flex;flex-direction:column;align-items:center}
+.url{
+  font-size:5.3cqw;font-weight:300;letter-spacing:-.01em;line-height:1;
+  background:linear-gradient(95deg,var(--text) 18%,var(--cyan) 58%,var(--emerald) 96%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  padding-bottom:.18em;
+}
+.s5 .say{margin-top:2.5cqw;font-size:2.05cqw;font-weight:300;color:var(--text)}
+.s5 .say em{font-style:italic;color:var(--cyan)}
+.s5 .note{margin-top:1.25cqw;font-size:1.28cqw;color:var(--muted);max-width:50cqw;font-weight:300}
+.s5 .steps{
+  display:flex;gap:3.4cqw;margin-top:3.4cqw;
+  font-family:var(--mono);font-size:.92cqw;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);
+}
+.s5 .steps b{color:var(--cyan);font-weight:400;margin-right:.55cqw}
+.sig{
+  margin-top:4cqw;padding-top:2cqw;border-top:1px solid var(--hair);
+  font-family:var(--mono);font-size:.92cqw;letter-spacing:.1em;color:var(--faint);
+}
+.sig b{color:rgba(255,255,255,.88);font-weight:400}
+
+/* ---------- print / pdf ---------- */
+@page{size:13.333in 7.5in;margin:0}
+@media print{
+  body{background:#050505}
+  .slide{
+    width:13.333in;height:7.5in;aspect-ratio:auto;min-height:0;
+    page-break-after:always;break-after:page;border:none;
+  }
+  .slide:last-child{page-break-after:auto;break-after:auto}
+  .bg{opacity:.10;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+/* ---------- phone ---------- */
+@media screen and (max-width:760px){
+  .slide{aspect-ratio:auto;min-height:100svh;padding:11svh 0 14svh}
+  .inner{padding:0 16px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;gap:10px}
+  .eyebrow::before{width:22px}
+  h1{font-size:8.4vw;line-height:1.14}
+  h2,.s3 h2,.s4 h2{font-size:7.6vw!important;line-height:1.16}
+  .lede{font-size:4.3vw;max-width:none}
+  .rule{margin:6vw 0}
+  .sfoot{left:16px;right:16px;bottom:5svh;font-size:9px;letter-spacing:.18em}
+  .s1 .kicker{font-size:11px;margin-top:7vw;letter-spacing:.16em}
+
+  .logo{width:74vw}
+  .s2 .nameplate{font-size:3.5vw;margin-top:5vw;letter-spacing:.5em;text-indent:.5em}
+  .s2 .hair{margin-top:7vw;width:26vw}
+  .s2 .tag{font-size:6.2vw;margin-top:7vw}
+  .s2 .sub{font-size:4vw;margin-top:4vw;max-width:none}
+
+  .s3 .cols{grid-template-columns:1fr;gap:7vw}
+  .pillars{gap:3vw}
+  .pillar{padding:4vw 4vw 4vw 5.5vw}
+  .pillar .pl{font-size:2.8vw;letter-spacing:.22em}
+  .pillar .pt{font-size:5vw;margin-top:1.5vw}
+  .pillar .pd{font-size:3.3vw;margin-top:1vw}
+  .statline{gap:7vw;margin-top:7vw;flex-wrap:wrap}
+  .stat .sv{font-size:8.5vw}
+  .stat .sl{font-size:2.6vw;letter-spacing:.16em;margin-top:1.5vw}
+
+  .s4 .head{flex-direction:column;align-items:flex-start;gap:5vw}
+  .s4 .metrics{gap:7vw;flex-wrap:wrap;flex-shrink:1}
+  .s4 .metrics .sv{font-size:8vw}
+  .panel{grid-template-columns:1fr;gap:7vw;margin-top:7vw}
+  .pane-l .plabel,.pane-r .plabel{font-size:2.7vw;letter-spacing:.2em;padding-bottom:2.5vw;margin-bottom:4vw}
+  .chips{gap:1.6vw}
+  .chip{font-size:3vw;padding:1.5vw 2.6vw}
+  .tier{margin-bottom:4vw}
+  .tier .tl{font-size:2.8vw;gap:1.6vw;margin-bottom:1.6vw}
+  .dot{width:1.5vw;height:1.5vw}
+  .tier .tv{font-size:3.4vw}
+
+  .url{font-size:8.6vw}
+  .s5 .say{font-size:5.6vw;margin-top:6vw}
+  .s5 .note{font-size:4vw;max-width:none;margin-top:4vw}
+  .s5 .steps{flex-direction:column;gap:3vw;margin-top:8vw;font-size:3.3vw;align-items:center}
+  .sig{font-size:3vw;margin-top:9vw;padding-top:5vw;letter-spacing:.06em}
+}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 01 -->
+<section class="slide s1">
+  <div class="bg" style="background-image:url('__IMG1__')"></div>
+  <div class="gridlines"></div>
+  <div class="vign"></div>
+  <div class="glow g-cy" style="width:46cqw;height:46cqw;left:-12cqw;top:-14cqw"></div>
+  <div class="glow g-em" style="width:38cqw;height:38cqw;right:-10cqw;bottom:-16cqw"></div>
+  <div class="inner">
+    <div class="eyebrow">Amplifier Health</div>
+    <h1 style="margin-top:2.6cqw">
+      Imagine a technology that could touch
+      <span class="ital">every human on the planet</span>
+      and make their life better.
+    </h1>
+    <div class="kicker">It already exists. Everyone already has one.</div>
+  </div>
+  <div class="sfoot"><span>The Voice Is The Vital Sign</span><span class="num">01 / 05</span></div>
+</section>
+
+<!-- 02 -->
+<section class="slide s2">
+  <div class="bg shift" style="background-image:url('__IMG2__')"></div>
+  <div class="gridlines"></div>
+  <div class="vign"></div>
+  <div class="glow g-cy" style="width:52cqw;height:52cqw;left:50%;top:50%;transform:translate(-50%,-50%)"></div>
+  <div class="inner">
+    <div class="logo">__LOGO__</div>
+    <div class="nameplate">Amplifier Health</div>
+    <div class="hair"></div>
+    <div class="tag">The human voice, made a <em>vital sign</em>.</div>
+    <div class="sub">We measure how you speak, not what you say. Acoustics carry physiology. Physiology is measurable.</div>
+  </div>
+  <div class="sfoot"><span>Introducing</span><span class="num">02 / 05</span></div>
+</section>
+
+<!-- 03 -->
+<section class="slide s3">
+  <div class="bg" style="background-image:url('__IMG3__')"></div>
+  <div class="gridlines"></div>
+  <div class="vign"></div>
+  <div class="glow g-cy" style="width:44cqw;height:44cqw;right:-12cqw;top:-12cqw"></div>
+  <div class="inner">
+    <div class="cols">
+      <div>
+        <div class="eyebrow">Sona&#8209;2 &nbsp;/&nbsp; Large Acoustic Model</div>
+        <h2 style="margin-top:1.9cqw">
+          A <span class="accent">Large Acoustic Model</span> at the frontier of foundation model generative AI.
+        </h2>
+        <div class="rule"></div>
+        <p class="lede">
+          A comprehensive evaluation of a human being from
+          <span class="accent-em">15 seconds of speech</span>.
+          No blood. No cuff. No wearable. No clinic.
+        </p>
+        <div class="statline">
+          <div class="stat"><div class="sv"><span>15</span>s</div><div class="sl">Of Speech</div></div>
+          <div class="stat"><div class="sv"><span>2</span>M+</div><div class="sl">Labeled Interactions</div></div>
+          <div class="stat"><div class="sv"><span>&#8734;</span></div><div class="sl">Language Agnostic</div></div>
+        </div>
+      </div>
+      <div class="pillars">
+        <div class="pillar">
+          <div class="pl">01 &nbsp;The Model</div>
+          <div class="pt">Sona&#8209;2</div>
+          <div class="pd">Frontier LAM trained on clinically labeled real world audio.</div>
+        </div>
+        <div class="pillar">
+          <div class="pl">02 &nbsp;The Dataset</div>
+          <div class="pt">2M+ Interactions</div>
+          <div class="pd">Clinically labeled, in the wild. The unfair advantage.</div>
+        </div>
+        <div class="pillar">
+          <div class="pl">03 &nbsp;The Inference Layer</div>
+          <div class="pt">Amplifier Find</div>
+          <div class="pd">Scalable B2B SaaS monetization engine.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sfoot"><span>Acoustics, Not Linguistics</span><span class="num">03 / 05</span></div>
+</section>
+
+<!-- 04 -->
+<section class="slide s4">
+  <div class="bg cool" style="background-image:url('__IMG4__')"></div>
+  <div class="gridlines"></div>
+  <div class="vign"></div>
+  <div class="glow g-em" style="width:44cqw;height:44cqw;left:-14cqw;bottom:-18cqw"></div>
+  <div class="inner">
+    <div class="head">
+      <div>
+        <div class="eyebrow">What Comes Back</div>
+        <h2 style="margin-top:1.7cqw;font-size:3.5cqw">One utterance.<br>A full physiological read.</h2>
+      </div>
+      <div class="metrics">
+        <div class="stat"><div class="sv"><span>17</span></div><div class="sl">Biomarker Signals</div></div>
+        <div class="stat"><div class="sv"><span>24</span></div><div class="sl">Conditions</div></div>
+        <div class="stat"><div class="sv"><span>8</span></div><div class="sl">Model Pipelines</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pane-l">
+        <div class="plabel"><span>Signals Measured</span><span>v2 / Live</span></div>
+        <div class="chips">__CHIPS__</div>
+      </div>
+      <div class="pane-r">
+        <div class="plabel"><span>Conditions By Evidence Tier</span><span>24</span></div>
+        <div class="tier">
+          <div class="tl t-est"><span class="dot d-est"></span>Established</div>
+          <div class="tv">Depression. Anxiety. Cognitive impairment. Acute stress. Fatigue. COPD. Elevated blood pressure. Traumatic brain injury.</div>
+        </div>
+        <div class="tier">
+          <div class="tl t-emg"><span class="dot d-emg"></span>Emerging</div>
+          <div class="tv">PTSD. ADHD. Alcohol and substance use. Hyperandrogenism. Sleep disorders. Bipolar. Allergy.</div>
+        </div>
+        <div class="tier">
+          <div class="tl t-inv"><span class="dot d-inv"></span>Investigational</div>
+          <div class="tv">Anemia. Dehydration. Migraine. Dry mouth. OCD.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sfoot"><span>Amplifier Find &nbsp;/&nbsp; Inference Layer</span><span class="num">04 / 05</span></div>
+</section>
+
+<!-- 05 -->
+<section class="slide s5">
+  <div class="bg" style="background-image:url('__IMG5__')"></div>
+  <div class="gridlines"></div>
+  <div class="vign"></div>
+  <div class="glow g-cy" style="width:50cqw;height:50cqw;left:50%;top:58%;transform:translate(-50%,-50%)"></div>
+  <div class="inner">
+    <div class="eyebrow" style="justify-content:center">Try It Yourself</div>
+    <div class="url" style="margin-top:2.4cqw">try.amplifierhealth.com</div>
+    <div class="say">Do not take my word for it. <em>Talk for 15 seconds.</em></div>
+    <div class="note">Open it on the phone in your pocket. No app. No hardware. No account.</div>
+    <div class="steps">
+      <div><b>01</b>Open the link</div>
+      <div><b>02</b>Speak for 15 seconds</div>
+      <div><b>03</b>Read your result</div>
+    </div>
+    <div class="sig"><b>Amit Mehta, MD, FRCP</b> &nbsp;&nbsp;/&nbsp;&nbsp; amit@amplifierhealth.com</div>
+  </div>
+  <div class="sfoot"><span>Amplifier Health</span><span class="num">05 / 05</span></div>
+</section>
+
+</div>
+<script>
+(function(){
+  var slides=Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  function go(d){
+    var y=window.scrollY,cur=0,best=1e9;
+    slides.forEach(function(s,i){var dd=Math.abs(s.offsetTop-y);if(dd<best){best=dd;cur=i}});
+    var n=Math.max(0,Math.min(slides.length-1,cur+d));
+    slides[n].scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key==='PageDown'||e.key===' '){e.preventDefault();go(1)}
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp'||e.key==='PageUp'){e.preventDefault();go(-1)}
+  });
+})();
+</script>
+</body>
+</html>
