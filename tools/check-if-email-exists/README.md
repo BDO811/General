@@ -17,9 +17,15 @@ LTO and compiles roughly 500 crates, so budget 10 to 20 minutes on a small machi
 
 ## Start here
 
-`RUNBOOK.md` is the ordered set of steps to get this working, with the exact DNS
-records. `./check-dns.sh amplifierhealth.com` verifies them from anywhere and tells
-you what is still wrong.
+`RUNBOOK.md` has the ordered steps. The short version: the verification identity
+lives on its own domain and its own host, sharing nothing with
+amplifierhealth.com, so no corporate DNS or mail setting is ever touched.
+
+```bash
+CF_API_TOKEN=... ./setup-dns-cloudflare.sh <probe-domain> <probe-ip>   # all records
+./check-dns.sh probe <probe-domain> <probe-ip>                          # verify them
+./check-dns.sh audit amplifierhealth.com                                # read-only, changes nothing
+```
 
 ## Configure the identity (do this before any real run)
 
@@ -27,9 +33,9 @@ you what is still wrong.
 cp config.env.example config.env   # gitignored
 ```
 
-Set `FROM_EMAIL` and `HELLO_NAME` to the verification subdomain, not to
-amplifierhealth.com. See `dns/squarespace-records.md` for the exact DNS records
-and for why the identity is separated.
+Set `FROM_EMAIL` and `HELLO_NAME` to the probe domain. Never to
+amplifierhealth.com: probing draws blocklist attention and an isolated domain
+keeps it away from Workspace and HubSpot delivery.
 
 ## Preflight
 
@@ -47,8 +53,8 @@ to add.
 ## Single check
 
 ```bash
-check_if_email_exists --from-email probe@verify.amplifierhealth.com \
-                      --hello-name mail.verify.amplifierhealth.com \
+check_if_email_exists --from-email probe@PROBE_DOMAIN \
+                      --hello-name mail.PROBE_DOMAIN \
                       target@example.com
 ```
 

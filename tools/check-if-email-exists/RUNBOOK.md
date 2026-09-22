@@ -1,100 +1,96 @@
-# Runbook: make voice-free email verification actually work
+# Runbook: standing up email verification on an isolated domain
 
-Two tracks. Track A is five minutes and fixes a live security gap. Track B stands
-up the verification host. They are independent, do A first.
+This design deliberately shares nothing with amplifierhealth.com. A separate
+domain, a separate host, a separate reputation. Nobody else at the company is
+affected by any step here, and no change to the corporate zone is ever required.
 
-After each track, run `./check-dns.sh amplifierhealth.com` and it will tell you
-pass or fail on every record. No guessing.
+That is not only a coordination convenience. SMTP probing attracts blocklist
+attention by design. If it ever lands, it lands on a domain whose only job is
+probing, and Workspace and HubSpot delivery for the whole company is untouched.
 
----
+## What you do, once
 
-## Track A: fix DMARC (5 minutes, do this today)
+Three things need your account and your card. Everything after them is mine.
 
-Right now `amplifierhealth.com` publishes `p=none` and sends its aggregate reports
-to `dmarcreports@lovable.dev`, which has no authorization record, so every receiver
-drops them. No enforcement, no visibility. Anyone can spoof the domain at an
-investor or a hospital CIO and nothing stops it.
+### 1. Register a domain
 
-### A1. Create the reporting address
+It is an envelope sender for probes, nobody reads it, so the name does not
+matter much. Checked available as of 2026-09-22:
 
-In Google Workspace admin, create a group `dmarc@amplifierhealth.com`. Add yourself.
-Allow external senders to post to it, otherwise the reports bounce.
+- `mxprobe.io`
+- `sendercheck.io`
+- `probemail.io`
+- `mailproof.io`
+- `listhygiene.io`
 
-### A2. Replace the DMARC record
+Register at Cloudflare directly and step 2 is already done. Roughly ten dollars
+a year.
 
-In the Squarespace domain dashboard, open `amplifierhealth.com`, go to the DNS
-settings, and find the custom record with host `_dmarc`. Edit it, or delete and
-re-add:
+### 2. Put the zone on Cloudflare and create a scoped token
 
-```
-Host:  _dmarc
-Type:  TXT
-Data:  v=DMARC1; p=none; rua=mailto:dmarc@amplifierhealth.com; fo=1; pct=100
-```
+Cloudflare dashboard, My Profile, API Tokens, Create Token, Edit zone DNS
+template. Set Zone Resources to **this one zone only**. Not All zones.
 
-Leave every other record alone. SPF and DKIM are correct and do not need touching.
+The token can edit DNS on that single throwaway domain and nothing else. It
+cannot see amplifierhealth.com, cannot read mail, cannot touch billing. That is
+the whole point of scoping it.
 
-### A3. Verify
+### 3. Create the probe host
 
-```bash
-./check-dns.sh amplifierhealth.com
-```
+Hetzner or Vultr, smallest instance, a few dollars a month. Both allow outbound
+port 25 and let you set reverse DNS yourself. Hetzner asks new accounts for a
+one line unblock request for port 25 and grants it routinely.
 
-Both DMARC lines should flip to PASS except the policy line, which stays FAIL by
-design until A4.
+Not AWS, GCP or Azure. They block outbound 25 by default and will not hand over
+reverse DNS control without a support fight.
 
-### A4. Tighten, two to three weeks later
+Give me the token, the domain and the instance IP.
 
-Read the reports. Confirm the only senders passing are Google Workspace and
-HubSpot. Then change `p=none` to `p=quarantine`, wait another two weeks, then
-`p=reject`. Do not skip to reject: if any legitimate sender is unaccounted for,
-their mail starts disappearing.
+## What I do from there
 
----
-
-## Track B: stand up the verification host
-
-### B1. Pick a provider that allows port 25 and reverse DNS
-
-Hetzner or Vultr. A small instance is a few dollars a month. Both let you set
-reverse DNS on the IP yourself. Hetzner requires a short unblock request for port
-25 on new accounts and grants it routinely.
-
-Do not use AWS, GCP or Azure. They block outbound 25 by default and will not grant
-reverse DNS control without a support fight. That is the whole reason this cannot
-run in the Claude container.
-
-### B2. Add the DNS records
-
-Same Squarespace DNS panel. Replace `PROBE_IP` with the instance IP.
-
-```
-Host: verify           Type: A     Data: PROBE_IP
-Host: mail.verify      Type: A     Data: PROBE_IP
-Host: verify           Type: MX    Priority: 10    Data: mail.verify.amplifierhealth.com.
-Host: verify           Type: TXT   Data: v=spf1 ip4:PROBE_IP -all
-Host: _dmarc.verify    Type: TXT   Data: v=DMARC1; p=reject; rua=mailto:dmarc@amplifierhealth.com
-```
-
-### B3. Set reverse DNS at the provider
-
-Not in Squarespace. In the provider console, on the instance or the IP, set the
-PTR record to `mail.verify.amplifierhealth.com`. This is the single most important
-record for getting honest answers from receivers.
-
-### B4. Verify DNS before touching the host
+### 4. Every DNS record, in one command
 
 ```bash
-./check-dns.sh amplifierhealth.com PROBE_IP
+CF_API_TOKEN=... ./setup-dns-cloudflare.sh <probe-domain> <probe-ip>
 ```
 
-All PASS before continuing. DNS propagation is minutes, not days, on Google Cloud
-DNS.
+Creates or updates, idempotently:
 
-### B5. Install and preflight on the host
+| Name | Type | Value |
+| --- | --- | --- |
+| `<domain>` | A | probe IP |
+| `mail.<domain>` | A | probe IP |
+| `<domain>` | MX 10 | `mail.<domain>` |
+| `<domain>` | TXT | `v=spf1 ip4:<probe-ip> -all` |
+| `_dmarc.<domain>` | TXT | `v=DMARC1; p=reject; rua=mailto:amit@amplifierhealth.com` |
+
+`--dry-run` prints the exact payloads and sends nothing.
+
+`p=reject` on a domain that never sends real mail costs nothing and means anyone
+spoofing it gets rejected outright.
+
+### 5. Reverse DNS
+
+The one record Cloudflare cannot hold. In the Hetzner or Vultr console, set the
+PTR for the instance IP to `mail.<domain>`. If you give me an API token for the
+provider I do this too. Otherwise it is one field in their UI.
+
+This is the single most important record for getting honest answers out of
+receiving mail servers.
+
+### 6. Verify
 
 ```bash
-ssh root@PROBE_IP
+./check-dns.sh probe <probe-domain> <probe-ip>
+```
+
+Checks delegation, both A records, MX, SPF coverage of the exact IP, DMARC
+policy, and forward-confirmed reverse DNS. Exits nonzero and names what is wrong.
+
+### 7. Install on the host
+
+```bash
+ssh root@<probe-ip>
 apt update && apt install -y git curl build-essential pkg-config perl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 . "$HOME/.cargo/env"
@@ -105,41 +101,35 @@ cd General/tools/check-if-email-exists
 cp config.env.example config.env
 ```
 
-Edit `config.env` so `FROM_EMAIL=probe@verify.amplifierhealth.com` and
-`HELLO_NAME=mail.verify.amplifierhealth.com`, then:
+Set `FROM_EMAIL=probe@<probe-domain>` and `HELLO_NAME=mail.<probe-domain>` in
+`config.env`, then:
 
 ```bash
 ./preflight.sh
 ```
 
-Nine checks. It exits nonzero and names the exact record to fix on any failure.
+Nine checks: binary, public IP, port 25 egress, PTR, forward-confirmed reverse
+DNS, MAIL FROM routability, SPF, and one live verification to prove the path.
 Do not run a batch until it is clean.
 
-### B6. Make the probe address receive mail
+### 8. Make the probe address readable
 
-Point `probe@verify.amplifierhealth.com` somewhere readable, or route the verify
-subdomain's MX to Workspace instead of the host. Bounces and abuse complaints
-arrive there, and a sender address that black-holes mail is itself a spam signal.
+Point `probe@<probe-domain>` somewhere you can see, or add a Cloudflare Email
+Routing rule forwarding it to your inbox. Bounces and abuse complaints land
+there, and a sender that black-holes mail is itself a spam signal.
 
-### B7. First batch
+### 9. First batch
 
 ```bash
 ./verify-batch.sh prospects.csv results/2026-09-22
 ```
 
-Start with fifty addresses, read the verdict summary, then scale. Keep
-`SLEEP_SECONDS` at 5 or higher.
+Start with fifty, read the verdict summary, then scale. Keep `SLEEP_SECONDS` at
+5 or above.
 
----
+## What this design does not do
 
-## If you would rather I did all of this without you clicking
-
-DNS is the only part that needs your account, and it needs it because Squarespace
-has no DNS API. Move the zone to Cloudflare (free, ten minutes, no downtime if the
-records are copied first), create a scoped API token limited to that one zone, and
-every future DNS change becomes something I make directly and verify in the same
-session. Same for the host: a Hetzner or Vultr API token and I provision the
-instance, set the PTR, install, preflight and run the first batch end to end.
-
-Your call. Until then the records above are exact and `check-dns.sh` tells you
-whether you got them right.
+It does not fix the DMARC problem on amplifierhealth.com. That finding is
+recorded in `dns/amplifierhealth-audit.md` with the remedy. It affects every
+mailbox on the domain, so it belongs to whoever schedules changes to that zone,
+and it is deliberately out of scope here.
