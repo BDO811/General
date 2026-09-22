@@ -1,11 +1,45 @@
 # check-if-email-exists (Reacher)
 
-Open source email verification: syntax, MX, disposable/role detection, and an SMTP
-probe that checks deliverability without sending mail.
+Two-stage email list hygiene. Stage one is free and runs anywhere. Stage two
+confirms individual mailboxes, either through a paid API or a self-hosted SMTP
+probe.
 
 Upstream: https://github.com/reacherhq/check-if-email-exists (AGPL-3.0)
 
-## Install
+## The two-stage pipeline
+
+```bash
+./prefilter.py prospects.csv                    # stage one, free, no setup
+./verify-api.py prospects.pass.txt --dry-run    # see the cost
+./verify-api.py prospects.pass.txt --yes        # stage two, spends credits
+```
+
+**Stage one is free and always worth running.** Syntax, MX over DNS over HTTPS,
+the public disposable blocklist and role accounts, from any machine with Python.
+No port 25, no host, no domain, no account. It writes a verdict CSV and a
+`.pass.txt` of survivors. Every address it catches is a credit you never spend.
+
+**Stage two buys the one signal stage one cannot produce**, whether a specific
+mailbox exists. Set `VERIFY_PROVIDER` and `VERIFY_API_KEY` in `config.env`:
+
+| Provider | Notes |
+| --- | --- |
+| `abstract` | 100 free credits a month, 1 request/second, good for trying it |
+| `millionverifier` | cheap bulk, roughly $2.50 per 1000 |
+
+Credits are money, so `verify-api.py` never verifies the same address twice (it
+resumes from its own output), prints the count and estimated cost and refuses to
+run without `--yes`, stops on an auth rejection rather than working through the
+list, and halts the moment the provider reports credits exhausted.
+
+Verdicts are normalised across providers to the same vocabulary the SMTP probe
+uses: `safe`, `risky`, `invalid`, `unknown`. A catch-all domain returns `risky`,
+not `safe`: the domain accepts everything, so nobody can confirm the mailbox.
+
+Running your own probe host instead of buying verifications is the third option.
+`COSTS.md` has the break-even. The rest of this README covers that path.
+
+## Installing the self-hosted probe (only if you are not buying verifications)
 
 ```bash
 ./install.sh            # builds and installs the CLI into ~/.local/bin
@@ -14,20 +48,6 @@ Upstream: https://github.com/reacherhq/check-if-email-exists (AGPL-3.0)
 
 Requires a Rust toolchain plus perl, cc, make and pkg-config. The release build uses
 LTO and compiles roughly 500 crates, so budget 10 to 20 minutes on a small machine.
-
-## The free part, no setup required
-
-```bash
-./prefilter.py prospects.csv
-```
-
-Syntax, MX, disposable domains and role accounts, checked from any machine with
-Python. No port 25, no host, no domain, nothing to pay. Removes a large share of
-a scraped list before anything paid or rate limited touches it, and writes a
-`.pass.txt` of survivors for stage two.
-
-It cannot tell you whether a specific mailbox exists. That is the only part that
-needs infrastructure. See `COSTS.md` for when that is worth owning.
 
 ## Start here
 
