@@ -91,23 +91,30 @@ def classify(addr, disposable):
         return "invalid", "bad syntax"
     if domain in disposable:
         return "invalid", "disposable domain"
-    if local.lower() in ROLE_PREFIXES:
-        return "risky", "role account"
-
     mx = has_mx(domain)
     if mx is None:
         return "invalid", "domain does not accept mail"
+
+    # Role accounts are NOT dropped. For B2B outreach press@, sales@, bd@ and
+    # partnerships@ are often the intended contact. They are labelled so you can
+    # decide, and excluded only with --no-role.
+    if local.lower() in ROLE_PREFIXES:
+        return "role", "role account, deliverable but not a person"
     if mx == "A":
         return "risky", "no MX, A record fallback only"
     return "unknown", "passed stage one, mailbox not yet verified"
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("usage: prefilter.py <addresses-file> [output-prefix]", file=sys.stderr)
+    argv = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    if not argv:
+        print("usage: prefilter.py <addresses-file> [output-prefix] [--no-role]",
+              file=sys.stderr)
         return 2
-    path = sys.argv[1]
-    prefix = sys.argv[2] if len(sys.argv) > 2 else os.path.splitext(path)[0]
+    path = argv[0]
+    prefix = argv[1] if len(argv) > 1 else os.path.splitext(path)[0]
+    keep_role = "--no-role" not in flags
 
     seen, addrs = set(), []
     with open(path, encoding="utf-8", errors="replace") as fh:
@@ -140,7 +147,8 @@ def main():
         w = csv.writer(fh)
         w.writerow(["email", "stage1", "reason"])
         w.writerows(rows)
-    survivors = [r[0] for r in rows if r[1] == "unknown"]
+    carry = {"unknown", "risky"} | ({"role"} if keep_role else set())
+    survivors = [r[0] for r in rows if r[1] in carry]
     with open(out_pass, "w", encoding="utf-8") as fh:
         fh.write("\n".join(survivors) + ("\n" if survivors else ""))
 
@@ -150,10 +158,15 @@ def main():
     print()
     for k, v in sorted(counts.items(), key=lambda kv: -kv[1]):
         print(f"  {v:6d}  {k}")
-    removed = len(addrs) - len(survivors)
-    pct = 100 * removed / len(addrs)
+    dropped = sum(1 for r in rows if r[1] == "invalid")
+    roles = sum(1 for r in rows if r[1] == "role")
     print()
-    print(f"  removed {removed} of {len(addrs)} ({pct:.0f}%) at zero cost")
+    print(f"  {dropped} of {len(addrs)} ({100*dropped/len(addrs):.0f}%) "
+          f"dropped as invalid, at zero cost")
+    if roles and keep_role:
+        print(f"  {roles} role accounts kept for stage two, pass --no-role to exclude them")
+    elif roles:
+        print(f"  {roles} role accounts excluded by --no-role")
     print(f"  wrote {out_csv} and {out_pass}")
     print(f"  {len(survivors)} addresses remain for stage two")
     return 0

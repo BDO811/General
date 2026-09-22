@@ -34,6 +34,34 @@ RATE_PER_1000 = {"abstract": 0.0, "millionverifier": 3.70}
 MIN_INTERVAL = {"abstract": 1.1, "millionverifier": 0.1}
 
 
+LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".verified-ledger.jsonl")
+
+
+def ledger_seen():
+    """Every address verified before, across all runs and output names.
+
+    Re-verifying an address you already paid for wastes a credit, and providers
+    treat repeats as abuse. Output-file resume is not enough: a different output
+    prefix would sail straight past it.
+    """
+    seen = {}
+    if not os.path.exists(LEDGER):
+        return seen
+    with open(LEDGER, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                d = json.loads(line)
+                seen[d["email"]] = d
+            except Exception:
+                continue
+    return seen
+
+
+def ledger_append(rec):
+    with open(LEDGER, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec) + "\n")
+
+
 def load_config():
     here = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(here, "config.env")
@@ -105,7 +133,8 @@ def norm_millionverifier(d):
     if r == "ok":
         return ("risky", "role account") if d.get("role") else ("safe", "deliverable")
     if r == "invalid":
-        return "invalid", d.get("subresult") or "invalid"
+        sub = d.get("subresult") or ""
+        return "invalid", "mailbox rejected, reason not given" if sub in ("", "unknown") else sub
     if r == "disposable":
         return "invalid", "disposable"
     if r == "catch_all":
@@ -148,6 +177,18 @@ def fatal_millionverifier(d):
 
 
 FATAL = {"abstract": fatal_abstract, "millionverifier": fatal_millionverifier}
+
+
+def balance_millionverifier(key):
+    """Authoritative balance. The per-call `credits` field is stale, so ask."""
+    try:
+        return get("https://api.millionverifier.com/api/v3/credits?" +
+                   urllib.parse.urlencode({"api": key})).get("credits")
+    except Exception:
+        return None
+
+
+BALANCE = {"millionverifier": balance_millionverifier}
 
 
 
@@ -197,7 +238,8 @@ def self_test(email):
 
     verdict, reason = norm(raw)
     print(f"\n  verdict  {verdict}  ({reason})")
-    left = raw.get("credits") if isinstance(raw, dict) else None
+    bal_fn = BALANCE.get(provider)
+    left = bal_fn(key) if bal_fn else None
     if isinstance(left, int):
         print(f"  credits  {left} remaining")
     print(f"  raw      {json.dumps(raw)[:400]}")
@@ -245,8 +287,10 @@ def main(argv):
 
     jsonl, out_csv = f"{prefix}.jsonl", f"{prefix}.csv"
 
-    # Resume: never spend a credit on an address already verified.
-    done = set()
+    # Resume: never spend a credit on an address already verified, and never
+    # re-query one, which providers count as abuse. The ledger spans every run.
+    prior = ledger_seen()
+    done = set(prior)
     if os.path.exists(jsonl):
         with open(jsonl, encoding="utf-8") as fh:
             for line in fh:
@@ -255,12 +299,30 @@ def main(argv):
                 except Exception:
                     continue
     todo = [a for a in addrs if a not in done]
+
+    # Carry forward anything the ledger already knows, so the output is complete
+    # without re-querying.
+    if os.path.exists(jsonl):
+        with open(jsonl, encoding="utf-8") as fh:
+            already = {json.loads(l)["email"] for l in fh if l.strip()}
+    else:
+        already = set()
+    reused = [a for a in addrs if a in prior and a not in already]
+    if reused:
+        with open(jsonl, "a", encoding="utf-8") as fh:
+            for a in reused:
+                fh.write(json.dumps(prior[a]) + "\n")
+        reuse_note = f"reused     {len(reused)} verdicts from the ledger, no credits spent"
+    else:
+        reuse_note = None
     if limit:
         todo = todo[:limit]
 
     est = len(todo) * RATE_PER_1000.get(provider, 0) / 1000
     print(f"provider   {provider}")
     print(f"input      {len(addrs)} addresses")
+    if reuse_note:
+        print(reuse_note)
     if done:
         print(f"already    {len(done)} verified previously, skipping")
     print(f"to verify  {len(todo)}")
@@ -278,6 +340,11 @@ def main(argv):
     if not key:
         print("VERIFY_API_KEY is not set", file=sys.stderr)
         return 2
+
+    bal_fn = BALANCE.get(provider)
+    start_balance = bal_fn(key) if bal_fn else None
+    if start_balance is not None:
+        print(f"balance    {start_balance} credits before this run")
 
     interval = MIN_INTERVAL.get(provider, 1.0)
     counts, failures, last = {}, 0, 0.0
@@ -320,13 +387,13 @@ def main(argv):
                 raw, verdict, reason = {"error": str(e)}, "error", str(e)[:120]
                 failures += 1
 
-            jf.write(json.dumps({"email": addr, "verdict": verdict,
-                                 "reason": reason, "raw": raw}) + "\n")
+            rec = {"email": addr, "verdict": verdict, "reason": reason, "raw": raw}
+            jf.write(json.dumps(rec) + "\n")
             jf.flush()
+            if verdict != "error":
+                ledger_append(rec)
             counts[verdict] = counts.get(verdict, 0) + 1
-            left = raw.get("credits") if isinstance(raw, dict) else None
-            tail = f"   [{left} credits left]" if isinstance(left, int) and left else ""
-            print(f"  [{i}/{len(todo)}] {addr:<42} {verdict:<8} {reason}{tail}")
+            print(f"  [{i}/{len(todo)}] {addr:<42} {verdict:<8} {reason}")
 
             if failures >= 5 and failures == i:
                 print("\n  every request has failed, stopping rather than burning credits",
@@ -352,6 +419,14 @@ def main(argv):
         print(f"  {v:6d}  {k}")
     safe = sum(1 for r in rows if r[1] == "safe")
     print(f"\n  {safe} of {len(rows)} confirmed safe to send")
+    if bal_fn:
+        end_balance = bal_fn(key)
+        if end_balance is not None:
+            used = (start_balance - end_balance) if start_balance is not None else None
+            print(f"  {end_balance} credits remaining" +
+                  (f", {used} used this run" if used is not None else ""))
+            if used == 0 and counts:
+                print("  (this provider does not charge for indeterminate results)")
     print(f"  wrote {jsonl} and {out_csv}")
     return 0
 

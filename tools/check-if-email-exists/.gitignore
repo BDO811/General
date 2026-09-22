@@ -4,3 +4,4 @@ config.env
 .disposable-domains.txt
 __pycache__/
 *.pyc
+.verified-ledger.jsonl
