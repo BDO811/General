@@ -22,10 +22,14 @@ lives on its own domain and its own host, sharing nothing with
 amplifierhealth.com, so no corporate DNS or mail setting is ever touched.
 
 ```bash
-CF_API_TOKEN=... ./setup-dns-cloudflare.sh <probe-domain> <probe-ip>   # all records
-./check-dns.sh probe <probe-domain> <probe-ip>                          # verify them
-./check-dns.sh audit amplifierhealth.com                                # read-only, changes nothing
+CF_API_TOKEN=... ./setup-dns-cloudflare.sh <probe-domain> <probe-ip>          # Cloudflare
+./setup-dns-gcloud.sh <probe-domain> <probe-ip> <project> <zone>             # or Google Cloud DNS
+./check-dns.sh probe <probe-domain> <probe-ip>                                # verify
+./check-dns.sh audit amplifierhealth.com                                      # read-only
 ```
+
+The probe host cannot live on Google Cloud, AWS or Azure: they block outbound
+port 25. `dns/hosting-options.md` has the details and the providers that work.
 
 ## Configure the identity (do this before any real run)
 

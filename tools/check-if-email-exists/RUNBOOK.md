@@ -41,8 +41,14 @@ Hetzner or Vultr, smallest instance, a few dollars a month. Both allow outbound
 port 25 and let you set reverse DNS yourself. Hetzner asks new accounts for a
 one line unblock request for port 25 and grants it routinely.
 
-Not AWS, GCP or Azure. They block outbound 25 by default and will not hand over
-reverse DNS control without a support fight.
+Not Google Cloud, AWS or Azure. Google blocks outbound port 25 to anything
+outside your VPC with no documented unblock path, which is fatal even though
+Cloud DNS and Compute Engine PTR records both work fine. See
+`dns/hosting-options.md` for the provider by provider breakdown.
+
+DNS is a separate question from the host. If you would rather keep DNS in the
+Google Cloud account you already have, use `setup-dns-gcloud.sh` instead of the
+Cloudflare version. The records and the verification are identical.
 
 Give me the token, the domain and the instance IP.
 
