@@ -1,24 +1,30 @@
-# Getting an Abstract API key
+# Getting a MillionVerifier key
 
-Verified against their site and docs, September 2026. I cannot create the
-account: it needs your email, a password and your acceptance of their terms.
-Everything after step 4 is mine.
+Verified against their API and public pricing, September 2026. I cannot create
+the account: it needs your email, a password and your acceptance of their terms.
+Everything from step 4 is mine.
+
+## Why this one
+
+Pay as you go, no subscription, and **credits never expire**. That matters more
+than the headline rate when outreach is lumpy: you buy once and draw down over
+months instead of paying a monthly minimum whether or not you use it.
+
+**Signup gives 500 free credits and asks for no credit card.** That is five
+times what Abstract's free tier offers, so start there and only buy once you
+have run real lists through it.
 
 ## 1. Sign up
 
-https://www.abstractapi.com/api/email-verification-validation-api
+https://www.millionverifier.com
 
-Click to start the free plan. **No credit card is required.** Sign up with an
-address you control. Use a personal or alias address rather than
-amit@amplifierhealth.com if you would rather this not sit against the company
-domain in a vendor's CRM, it makes no difference to how the API behaves.
+Create the account. No card required for the free credits. Use an address you
+control.
 
-## 2. Get the key for the right API
+## 2. Find the API key
 
-Abstract sells about a dozen APIs and **each one has its own separate key**.
-From your dashboard, open the **Email Validation** API specifically and copy the
-key shown there. A key from any of their other products returns HTTP 401 against
-this endpoint, and that is the single most common setup mistake.
+In the dashboard, open the API section. MillionVerifier issues one key for the
+account, so there is no per-product confusion to fall into here.
 
 ## 3. Paste it into config.env
 
@@ -27,11 +33,9 @@ cd tools/check-if-email-exists
 cp config.env.example config.env     # if you have not already
 ```
 
-Set these two lines:
-
 ```
-VERIFY_PROVIDER="abstract"
-VERIFY_API_KEY="the key you copied"
+VERIFY_PROVIDER="millionverifier"
+VERIFY_API_KEY="the key from the dashboard"
 ```
 
 `config.env` is gitignored. The key never reaches the repository.
@@ -42,8 +46,11 @@ VERIFY_API_KEY="the key you copied"
 ./verify-api.py --test
 ```
 
-One credit, one address, and it prints the parsed verdict and the raw response.
-If the key is wrong it says so and stops rather than working through anything.
+One credit, one address. It prints the verdict, the raw response and **your
+remaining credit balance**, which MillionVerifier returns on every call. If the
+key is wrong it stops immediately: their API answers a bad key with HTTP 200 and
+an error field rather than a 401, so the script reads the body, not just the
+status code.
 
 ## 5. Run a real list
 
@@ -53,32 +60,22 @@ If the key is wrong it says so and stops rather than working through anything.
 ./verify-api.py prospects.pass.txt --yes        # spend them
 ```
 
-## What the free plan gives you
+Each run prints the remaining balance as it goes, resumes from its own output so
+no address is ever paid for twice, and halts the moment credits run out.
 
-| | |
-| --- | --- |
-| Requests | 100 a month |
-| Rate limit | 1 per second |
-| Included | full deliverability, including the SMTP check, plus disposable, role, catch-all and MX |
-| Credit card | not required |
+## Buying credits, when the 500 run out
 
-100 a month is a real test of the workflow, not a demo. Against a stage one
-filtered list it is roughly 150 to 250 raw addresses a month.
+Roughly, from their published pricing:
 
-## When to leave Abstract
+| Credits | Price | Per 1,000 |
+| --- | --- | --- |
+| 10,000 | about $37 | about $3.70 |
+| 50,000 | about $89 | about $1.78 |
+| 100,000 | about $129 | about $1.29 |
 
-Their paid plans are monthly subscriptions, roughly $17 a month for 5,000, which
-is about $3.40 per thousand and only worth it if you use the volume every month.
+The cost estimate in `verify-api.py` uses the $3.70 figure, so it never
+understates what a run will cost. Credits never expire, so buying the larger
+package is only a cash flow question, not a use-it-or-lose-it one.
 
-MillionVerifier is pay as you go at roughly $2.50 per thousand with no monthly
-commitment, which suits lumpy outreach far better. Switching is one line:
-
-```
-VERIFY_PROVIDER="millionverifier"
-VERIFY_API_KEY="..."
-```
-
-Nothing else changes. Verdicts are normalised to the same vocabulary either way.
-
-So: start free on Abstract, and if you are regularly hitting the 100 ceiling,
-move to MillionVerifier rather than paying Abstract's monthly minimum.
+Against a stage one filtered list, 10,000 credits is a lot of outreach. Do not
+buy ahead of what you know you need.

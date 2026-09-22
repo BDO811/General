@@ -29,7 +29,7 @@ import urllib.parse
 import urllib.request
 
 # Rough published rates, for the cost estimate only. Update as needed.
-RATE_PER_1000 = {"abstract": 0.0, "millionverifier": 2.50}
+RATE_PER_1000 = {"abstract": 0.0, "millionverifier": 3.70}
 # Free plans are rate limited hard. Seconds between requests.
 MIN_INTERVAL = {"abstract": 1.1, "millionverifier": 0.1}
 
@@ -123,6 +123,33 @@ PROVIDERS = {
 EXHAUSTED = ("insufficient", "credit", "quota", "limit reached", "no credits")
 
 
+def fatal_abstract(d):
+    err = d.get("error")
+    if isinstance(err, dict):
+        msg = (err.get("message") or "").lower()
+        if "key" in msg or "unauthor" in msg:
+            return "auth", err.get("message")
+        if any(t in msg for t in EXHAUSTED):
+            return "credits", err.get("message")
+    return None
+
+
+def fatal_millionverifier(d):
+    """MillionVerifier answers HTTP 200 even for a bad key, so read the body."""
+    if (d.get("result") or "").lower() != "error":
+        return None
+    msg = (d.get("error") or "").strip()
+    low = msg.lower()
+    if "apikey" in low or "api key" in low or "not found" in low:
+        return "auth", msg
+    if any(t in low for t in EXHAUSTED):
+        return "credits", msg
+    return "auth", msg or "provider returned an unspecified error"
+
+
+FATAL = {"abstract": fatal_abstract, "millionverifier": fatal_millionverifier}
+
+
 
 def self_test(email):
     """Confirm the key works, using exactly one credit."""
@@ -158,8 +185,21 @@ def self_test(email):
         print(f"\n  request failed: {e}", file=sys.stderr)
         return 1
 
+    bad = FATAL.get(provider, lambda _d: None)(raw)
+    if bad:
+        kind, msg = bad
+        print(f"\n  {'key rejected' if kind == 'auth' else 'credits exhausted'}: {msg}",
+              file=sys.stderr)
+        if kind == "auth":
+            print("  Check the key is for this provider and the account is active.",
+                  file=sys.stderr)
+        return 1
+
     verdict, reason = norm(raw)
     print(f"\n  verdict  {verdict}  ({reason})")
+    left = raw.get("credits") if isinstance(raw, dict) else None
+    if isinstance(left, int):
+        print(f"  credits  {left} remaining")
     print(f"  raw      {json.dumps(raw)[:400]}")
     if verdict in ("safe", "risky", "invalid"):
         print("\n  Key works. You are ready to run a real list.")
@@ -251,6 +291,15 @@ def main(argv):
 
             try:
                 raw = check(addr, key)
+                bad = FATAL.get(provider, lambda _d: None)(raw)
+                if bad:
+                    kind, msg = bad
+                    label = ("key rejected by" if kind == "auth"
+                             else "credits exhausted at")
+                    print(f"\n  {label} {provider}: {msg}", file=sys.stderr)
+                    print(f"  stopping with {len(todo) - i + 1} unverified",
+                          file=sys.stderr)
+                    break
                 verdict, reason = norm(raw)
             except urllib.error.HTTPError as e:
                 body = ""
@@ -275,7 +324,9 @@ def main(argv):
                                  "reason": reason, "raw": raw}) + "\n")
             jf.flush()
             counts[verdict] = counts.get(verdict, 0) + 1
-            print(f"  [{i}/{len(todo)}] {addr:<42} {verdict:<8} {reason}")
+            left = raw.get("credits") if isinstance(raw, dict) else None
+            tail = f"   [{left} credits left]" if isinstance(left, int) and left else ""
+            print(f"  [{i}/{len(todo)}] {addr:<42} {verdict:<8} {reason}{tail}")
 
             if failures >= 5 and failures == i:
                 print("\n  every request has failed, stopping rather than burning credits",

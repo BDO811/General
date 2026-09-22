@@ -24,8 +24,8 @@ mailbox exists. Set `VERIFY_PROVIDER` and `VERIFY_API_KEY` in `config.env`:
 
 | Provider | Notes |
 | --- | --- |
-| `abstract` | 100 free credits a month, 1 request/second, good for trying it |
-| `millionverifier` | cheap bulk, roughly $2.50 per 1000 |
+| `millionverifier` | 500 free credits on signup, no card, pay as you go, credits never expire. See `SIGNUP.md` |
+| `abstract` | 100 free credits a month, 1 request/second, monthly subscription beyond that |
 
 Confirm a new key works before running a list. This uses exactly one credit:
 
