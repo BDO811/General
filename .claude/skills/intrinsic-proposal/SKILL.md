@@ -256,6 +256,70 @@ normal sign-off ("Thanks / a" plus the name, title and address block, or the rea
 signature). This rule governs the attached document, not the message it rides on. Removing
 the email signature is a separate mistake and just as wrong.
 
+
+---
+
+## Line Spacing and Alignment — Checked Before Delivery, Every Time
+
+**Never hand over a PDF whose line spacing has not been checked programmatically.**
+Looking at a thumbnail is not checking. The failure this rule exists to prevent was a
+tinted card whose text sat 2.1pt *above* its own top edge with 12.9pt of dead space
+below it, which was invisible at thumbnail size and obvious at full size.
+
+### Build from real font metrics, never from tuned constants
+
+Every vertical measurement comes from `pdfmetrics.getAscentDescent(font, size)`, not
+from a hand-picked number that looked right once:
+
+```python
+LEAD_RATIO = 1.40          # one ratio for the whole document
+
+def leading(size):
+    return round(size * LEAD_RATIO, 2)
+
+def vmetrics(font, size):
+    a, d = pdfmetrics.getAscentDescent(font, size)
+    return a, abs(d)        # ascent, descent, both positive
+
+def draw_lines(c, x, y_top, lines, font, size, color, pad_top, lead=None):
+    """Draw from the TOP EDGE of a block, never from a baseline."""
+    a, _ = vmetrics(font, size)
+    lead = lead or leading(size)
+    ty = y_top - pad_top - a
+    for ln in lines:
+        draw(c, x, ty, ln, font, size, color)
+        ty -= lead
+```
+
+A padded box's height is `pad + ascent + (n-1)*leading + descent + pad`. Padding is
+measured to the **glyph edges**, not to the baseline. Measuring to the baseline is what
+produces boxes that are crowded at the top and hollow at the bottom, because the
+ascender occupies space the baseline math does not know about.
+
+Inter's own minimum line box is about 1.21x the point size, so any leading under about
+1.3x pushes ascenders into the descenders above them. Do not crowd leading to save a
+page: check the page count at two or three ratios first, because the count is usually
+driven by indivisible blocks rather than by leading.
+
+### Then check the rendered file, not the source
+
+Run a `layout_check()` over the finished PDF with PyMuPDF and refuse to deliver on any
+finding. It checks three things on every single line:
+
+1. **Horizontal fit.** No line's bounding box crosses the left or right margin.
+2. **Vertical rhythm.** Within a column, every gap between consecutive baselines is at
+   least 1.30x the type size, and all gaps in that column are uniform to within 0.75pt.
+3. **Card padding.** For every filled card, the gap from the card's top edge to the top
+   of the first glyph is positive and within 4pt of the gap from the last glyph to the
+   bottom edge.
+
+The working implementation is in `amplifier/theris/build_theris.py` in the General repo
+under `layout_check()`. Copy it rather than rewriting it. Validate any changes to it by
+running it against a known-bad PDF and confirming it reports the problem.
+
+The build script exits non-zero when either check fails, so a broken layout cannot be
+delivered by accident. Wire it that way rather than printing a warning.
+
 ---
 
 ## Step 5 — Copy to Proposals Folder

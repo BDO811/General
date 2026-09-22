@@ -51,7 +51,34 @@ only as a list bullet glyph, never as punctuation inside a sentence.
 
 Grep the finished text for these characters before calling anything done.
 
-## 4. Customer branding on proposals
+## 4. Line spacing and alignment are checked before anything is delivered
+
+**Never hand over a document whose line spacing has not been checked programmatically.**
+Glancing at a thumbnail is not checking. The failure this rule exists to prevent was a
+tinted card whose text sat 2.1pt above its own top edge with 12.9pt of dead space below
+it: invisible small, glaring at full size, and shipped twice.
+
+Build every vertical measurement from `pdfmetrics.getAscentDescent(font, size)`, never
+from a constant that looked right once. A padded box is
+`pad + ascent + (n-1)*leading + descent + pad`, with padding measured to the glyph edges
+rather than to the baseline. Measuring to the baseline is exactly what produces boxes
+crowded at the top and hollow at the bottom. One leading ratio for a whole document,
+1.40, because Inter's own minimum line box is about 1.21x and anything under 1.3x pushes
+ascenders into the descenders above.
+
+Then check the rendered file. `layout_check()` in `amplifier/theris/build_theris.py` is
+the working implementation. On every line it verifies:
+
+1. the line's bounding box does not cross either margin
+2. every gap between consecutive baselines in a column is at least 1.30x the type size,
+   and all gaps in that column match to within 0.75pt
+3. every filled card has positive top padding, within 4pt of its bottom padding
+
+The build exits non-zero on any finding, so a broken layout cannot ship by accident.
+Validate changes to the checker by running it against a known-bad file and confirming it
+reports the problem. Visual review is in addition to this, never instead of it.
+
+## 5. Customer branding on proposals
 
 Every proposal is rendered in the recipient's own visual identity, pulled from their
 live site rather than guessed. Curl the HTML and the stylesheet (a plain fetch strips
@@ -62,7 +89,7 @@ as framework noise, and render their logo from SVG to PNG.
 Their brand carries the accents. Amplifier's neutrals carry the body type. Any accent
 carrying text clears 4.5:1 contrast. Never invent a hex.
 
-## 5. Where the skills live
+## 6. Where the skills live
 
 The proposal skills are normally loaded from the synced skill store. Cloud sessions only
 have a read cache of it, so the copies under `.claude/skills/` here are the durable ones.

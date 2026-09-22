@@ -192,6 +192,12 @@ e: amit@amplifierhealth.com
 
 Subject: `Amplifier Health and [Partner]`
 
+**Line spacing hard rule:** never deliver a PDF whose line spacing has not been
+checked programmatically. Build vertical geometry from `pdfmetrics.getAscentDescent`,
+not tuned constants, and run a `layout_check()` over the rendered file for margin
+overruns, cramped or uneven leading, and lopsided card padding. Same rule as the
+`amplifier-proposal` skill.
+
 **Attribution hard rule:** a proposal document never carries Amit's name.
 No "prepared by", no "From Amit Mehta", no byline, no named contact card. It is always
 from the company. The outreach email keeps its normal sign-off; this governs the attached

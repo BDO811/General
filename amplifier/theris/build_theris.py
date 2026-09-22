@@ -79,6 +79,41 @@ def wrap_text(c, text, font, size, max_w):
     if line: lines.append(line)
     return lines
 
+# --- vertical rhythm -------------------------------------------------------
+# One leading ratio for the whole document. Inter's own minimum line box is about
+# 1.21x the point size, so anything under ~1.3 crowds ascenders into the descenders
+# of the line above. 1.40 is comfortable and consistent. Verified: at 1.40, 1.37 and
+# 1.34 this document is the same length, so there is no page-count reason to crowd it.
+LEAD_RATIO = 1.40
+
+def leading(size):
+    return round(size * LEAD_RATIO, 2)
+
+def vmetrics(font, size):
+    """Ascent above baseline and descent below it, both positive, in points."""
+    a, d = pdfmetrics.getAscentDescent(font, size)
+    return a, abs(d)
+
+def block_height(font, size, nlines, pad_top, pad_bottom, lead=None):
+    """Exact height of a padded run of text. Padding is measured to the glyph
+    edges, not to the baseline, which is what made the old boxes lopsided."""
+    a, dsc = vmetrics(font, size)
+    lead = lead or leading(size)
+    return pad_top + a + (nlines - 1) * lead + dsc + pad_bottom
+
+def draw_lines(c, x, y_top, lines, font, size, color, pad_top, lead=None):
+    """Draw from the TOP EDGE of a block rather than from a baseline. Returns the
+    baseline of the last line drawn."""
+    a, _ = vmetrics(font, size)
+    lead = lead or leading(size)
+    ty = y_top - pad_top - a
+    last = ty
+    for ln in lines:
+        draw(c, x, ty, ln, font, size, color)
+        last = ty
+        ty -= lead
+    return last
+
 def fit_width(c, text, font, max_w, max_size=72, min_size=20):
     size = max_size
     while size >= min_size:
@@ -135,92 +170,107 @@ class Doc(object):
         self.y -= 16
 
     def h2(self, text):
+        SZ = 15.1
         self.need(88)
-        lines = wrap_text(self.c, text, "Inter-Bold", 15.1, TW)
-        for ln in lines:
-            draw(self.c, ML, self.y, ln, "Inter-Bold", 15.1, BRAND["ink"])
-            self.y -= 18
-        self.y -= 3
+        lead = leading(SZ)
+        a, dsc = vmetrics("Inter-Bold", SZ)
+        lines = wrap_text(self.c, text, "Inter-Bold", SZ, TW)
+        draw_lines(self.c, ML, self.y, lines, "Inter-Bold", SZ, BRAND["ink"], 0, lead)
+        self.y -= a + (len(lines) - 1) * lead + dsc + 6
 
     def h3(self, text):
+        SZ = 11.5
         self.need(78)
-        self.y -= 4
-        draw(self.c, ML, self.y, text, "Inter-Bold", 11.5, BRAND["ink"])
-        self.y -= 15
+        self.y -= 5
+        a, dsc = vmetrics("Inter-Bold", SZ)
+        draw(self.c, ML, self.y - a, text, "Inter-Bold", SZ, BRAND["ink"])
+        self.y -= a + dsc + 5
 
     def kicker(self, text):
         # a kicker introduces the block after it, so it reserves room for both
+        SZ = 7.4
         self.need(165)
-        draw(self.c, ML, self.y, text.upper(), "Inter-Bold", 7.4, BRAND["primary"])
-        self.y -= 13
+        a, dsc = vmetrics("Inter-Bold", SZ)
+        draw(self.c, ML, self.y - a, text.upper(), "Inter-Bold", SZ, BRAND["primary"])
+        self.y -= a + dsc + 6
 
-    def para(self, text, size=10.1, leading=12.8, color=DK, gap=6.5):
+    def para(self, text, size=10.1, lead=None, color=DK, gap=7):
+        lead = lead or leading(size)
+        a, dsc = vmetrics("Inter", size)
         lines = wrap_text(self.c, text, "Inter", size, TW)
-        self.need(len(lines) * leading + gap)
-        # a paragraph that would split badly gets its own page
-        if self.y - (len(lines) * leading) < self.BOT:
+        h = a + (len(lines) - 1) * lead + dsc
+        self.need(h + gap)
+        if self.y - h < self.BOT:
             self._newpage()
-        for ln in lines:
-            draw(self.c, ML, self.y, ln, "Inter", size, color)
-            self.y -= leading
-        self.y -= gap
+        draw_lines(self.c, ML, self.y, lines, "Inter", size, color, 0, lead)
+        self.y -= h + gap
 
-    def bullet(self, text, indent=10, leading=12.4, gap=3.5):
+    def bullet(self, text, indent=10, lead=None, gap=5):
+        SZ = 10.1
+        lead = lead or leading(SZ)
+        a, dsc = vmetrics("Inter", SZ)
         avail = TW - indent - 10
-        lines = wrap_text(self.c, text, "Inter", 10.1, avail)
-        self.need(len(lines) * leading + gap)
-        if self.y - (len(lines) * leading) < self.BOT:
+        lines = wrap_text(self.c, text, "Inter", SZ, avail)
+        h = a + (len(lines) - 1) * lead + dsc
+        self.need(h + gap)
+        if self.y - h < self.BOT:
             self._newpage()
-        draw(self.c, ML + indent, self.y + 2.5, "–", "Inter-Bold", 7.4, BRAND["secondary"])
-        for i, ln in enumerate(lines):
-            draw(self.c, ML + indent + 10, self.y, ln, "Inter", 10.1, DK)
-            self.y -= leading
-        self.y -= gap
+        # the glyph sits on the first body baseline, not floating above it
+        draw(self.c, ML + indent, self.y - a, "–", "Inter-Bold", 7.4, BRAND["secondary"])
+        draw_lines(self.c, ML + indent + 10, self.y, lines, "Inter", SZ, DK, 0, lead)
+        self.y -= h + gap
 
-    def numbered(self, n, text, indent=10, leading=12.4, gap=4):
+    def numbered(self, n, text, indent=10, lead=None, gap=5):
+        SZ = 10.1
+        lead = lead or leading(SZ)
+        a, dsc = vmetrics("Inter", SZ)
         avail = TW - indent - 18
-        lines = wrap_text(self.c, text, "Inter", 10.1, avail)
-        self.need(len(lines) * leading + gap)
-        if self.y - (len(lines) * leading) < self.BOT:
+        lines = wrap_text(self.c, text, "Inter", SZ, avail)
+        h = a + (len(lines) - 1) * lead + dsc
+        self.need(h + gap)
+        if self.y - h < self.BOT:
             self._newpage()
-        draw(self.c, ML + indent, self.y, "%d." % n, "Inter-Bold", 10.1, BRAND["primary"])
-        for ln in lines:
-            draw(self.c, ML + indent + 18, self.y, ln, "Inter", 10.1, DK)
-            self.y -= leading
-        self.y -= gap
+        draw(self.c, ML + indent, self.y - a, "%d." % n, "Inter-Bold", SZ, BRAND["primary"])
+        draw_lines(self.c, ML + indent + 18, self.y, lines, "Inter", SZ, DK, 0, lead)
+        self.y -= h + gap
 
-    def callout(self, label, text, pad_v=11, pad_h=13, line_h=12.8):
-        lines = wrap_text(self.c, text, "Inter", 9.6, TW - pad_h * 2)
-        h = pad_v + 11 + 6 + len(lines) * line_h + pad_v - 4
+    def callout(self, label, text, pad=13, gap=7):
+        """Dark box. Padding is symmetric and measured to the glyph edges."""
+        LS, BS = 7.9, 9.6
+        la, ld = vmetrics("Inter-Bold", LS)
+        ba, bd = vmetrics("Inter", BS)
+        lead = leading(BS)
+        lines = wrap_text(self.c, text, "Inter", BS, TW - pad * 2)
+        h = pad + la + ld + gap + ba + (len(lines) - 1) * lead + bd + pad
         self.need(h + 12)
         if self.y - h < self.BOT:
             self._newpage()
-        filled_rect(self.c, ML, self.y - h, TW, h, BOX)
-        filled_rect(self.c, ML, self.y - h, 3.2, h, BRAND["primary"])
-        ty = self.y - pad_v - 7.9 * 0.758
-        draw(self.c, ML + pad_h, ty, label.upper(), "Inter-Bold", 7.9, HLT)
-        ty -= 12
-        for ln in lines:
-            draw(self.c, ML + pad_h, ty, ln, "Inter", 9.6, LT)
-            ty -= line_h
-        self.y -= h + 12
+        top = self.y
+        filled_rect(self.c, ML, top - h, TW, h, BOX)
+        filled_rect(self.c, ML, top - h, 3.2, h, BRAND["primary"])
+        draw(self.c, ML + pad, top - pad - la, label.upper(), "Inter-Bold", LS, HLT)
+        draw_lines(self.c, ML + pad, top - pad - la - ld - gap, lines,
+                   "Inter", BS, LT, 0, lead)
+        self.y = top - h - 12
 
-    def note(self, label, text, pad_v=10, pad_h=12, line_h=12.4):
-        """Light brand-tinted card, for guardrails and open items."""
-        lines = wrap_text(self.c, text, "Inter", 9.4, TW - pad_h * 2)
-        h = pad_v + 10 + 5 + len(lines) * line_h + pad_v - 4
+    def note(self, label, text, pad=12, gap=6):
+        """Light brand-tinted card. Same symmetric geometry as callout()."""
+        LS, BS = 7.6, 9.4
+        la, ld = vmetrics("Inter-Bold", LS)
+        ba, bd = vmetrics("Inter", BS)
+        lead = leading(BS)
+        lines = wrap_text(self.c, text, "Inter", BS, TW - pad * 2)
+        h = pad + la + ld + gap + ba + (len(lines) - 1) * lead + bd + pad
         self.need(h + 12)
         if self.y - h < self.BOT:
             self._newpage()
-        filled_rect(self.c, ML, self.y - h, TW, h, BRAND["surface"])
-        filled_rect(self.c, ML, self.y - h, 3.2, h, BRAND["tertiary"])
-        ty = self.y - pad_v - 7.6 * 0.758
-        draw(self.c, ML + pad_h, ty, label.upper(), "Inter-Bold", 7.6, BRAND["ink"])
-        ty -= 11
-        for ln in lines:
-            draw(self.c, ML + pad_h, ty, ln, "Inter", 9.4, DK)
-            ty -= line_h
-        self.y -= h + 12
+        top = self.y
+        filled_rect(self.c, ML, top - h, TW, h, BRAND["surface"])
+        filled_rect(self.c, ML, top - h, 3.2, h, BRAND["tertiary"])
+        draw(self.c, ML + pad, top - pad - la, label.upper(), "Inter-Bold", LS, BRAND["ink"])
+        draw_lines(self.c, ML + pad, top - pad - la - ld - gap, lines,
+                   "Inter", BS, DK, 0, lead)
+        self.y = top - h - 12
 
     def stats(self, cells):
         bh = 54
@@ -239,55 +289,73 @@ class Doc(object):
             draw(self.c, cx + 9, by + 4.5, sub, "Inter", 7.0, MED)
         self.y = by - 14
 
-    def table(self, header, rows, col_x=(0, 250, 372), row_h=17):
-        self.need(row_h * 2 + 20)
-        draw(self.c, ML, self.y, header.upper(), "Inter-Bold", 7.4, BRAND["primary"])
-        self.y -= 8
+    def table(self, header, rows, col_x=(0, 250, 372), row_h=None):
+        """Header and rows are placed from the top edge, like every other block, and
+        each row's text is optically centred between its rules using real metrics."""
+        HS, RS = 7.4, 9.0
+        ha, hd = vmetrics("Inter-Bold", HS)
+        ra, rd = vmetrics("Inter-Bold", RS)
+        row_h = row_h or round(ra + rd + 9, 1)
+        self.need(row_h * 2 + 32)
+        draw(self.c, ML, self.y - ha, header.upper(), "Inter-Bold", HS, BRAND["primary"])
+        self.y -= ha + hd + 7
         hrule(self.c, self.y, color=BRAND["ink"], thickness=1.1)
         self.y -= 2
         for r in rows:
-            self.need(row_h + 4)
             if self.y - row_h < self.BOT:
                 self._newpage()
                 hrule(self.c, self.y, color=BRAND["ink"], thickness=1.1)
                 self.y -= 2
-            ty = self.y - row_h * 0.62
-            draw(self.c, ML + 4, ty, r[0], "Inter-Bold", 9.0, BRAND["ink"])
-            draw(self.c, ML + col_x[1], ty, r[1], "Inter", 9.0, DK)
-            if len(r) > 2 and len(col_x) > 2:
-                draw_right(self.c, PW - MR - 4, ty, r[2], "Inter-Bold", 9.0, BRAND["primary"])
+            ty = self.y - (row_h - (ra + rd)) / 2.0 - ra
+            draw(self.c, ML + 4, ty, r[0], "Inter-Bold", RS, BRAND["ink"])
+            draw(self.c, ML + col_x[1], ty, r[1], "Inter", RS, DK)
+            if len(r) > 2 and len(col_x) > 2 and r[2]:
+                draw_right(self.c, PW - MR - 4, ty, r[2], "Inter-Bold", RS, BRAND["primary"])
             self.y -= row_h
             hrule(self.c, self.y, color=DV, thickness=0.4)
-        self.y -= 12
+        self.y -= 14
 
     def case(self, title, today, gap, adds, econ):
         """One reviewed Theris activity: what it is today, where the economics leak,
-        what an acoustic read adds, and the money line. Never splits across pages."""
-        LBLW = 96
+        what an acoustic read adds, and the money line. Never splits across pages.
+        All vertical geometry comes from real font metrics, not tuned constants."""
+        LBLW, BS, ES = 96, 9.7, 9.4
+        lead, elead = leading(BS), leading(ES)
+        ba, bd = vmetrics("Inter", BS)
+        ea, ed = vmetrics("Inter-Bold", ES)
         tw = TW - LBLW
         rows = [("TODAY", today), ("THE GAP", gap), ("SONA-2 ADDS", adds)]
-        wrapped = [(l, wrap_text(self.c, t, "Inter", 9.7, tw)) for l, t in rows]
-        econ_lines = wrap_text(self.c, econ, "Inter-Bold", 9.4, TW - 24)
-        h = 20 + sum(len(w) * 12.2 + 5 for _, w in wrapped) + 10 + len(econ_lines) * 12.2 + 14
-        self.need(h + 10)
+        wrapped = [(l, wrap_text(self.c, t, "Inter", BS, tw)) for l, t in rows]
+        econ_lines = wrap_text(self.c, econ, "Inter-Bold", ES, TW - 24)
+
+        ta, td = vmetrics("Inter-Bold", 11.5)
+        title_h = ta + td + 8
+        rows_h = sum(ba + (len(w) - 1) * lead + bd + 7 for _, w in wrapped)
+        epad = 11
+        econ_h = epad + ea + (len(econ_lines) - 1) * elead + ed + epad
+        h = title_h + rows_h + 5 + econ_h
+
+        self.need(h + 12)
         if self.y - h < self.BOT:
             self._newpage()
-        draw(self.c, ML, self.y, title, "Inter-Bold", 11.5, BRAND["ink"])
-        self.y -= 17
+
+        draw(self.c, ML, self.y - ta, title, "Inter-Bold", 11.5, BRAND["ink"])
+        self.y -= title_h
+
         for label, lines in wrapped:
-            draw(self.c, ML, self.y, label, "Inter-Bold", 7.2, BRAND["secondary"])
-            for ln in lines:
-                draw(self.c, ML + LBLW, self.y, ln, "Inter", 9.7, DK)
-                self.y -= 12.2
-            self.y -= 5
-        eh = 10 + len(econ_lines) * 12.2
-        filled_rect(self.c, ML, self.y - eh + 4, TW, eh, BRAND["surface"])
-        filled_rect(self.c, ML, self.y - eh + 4, 3.0, eh, BRAND["primary"])
-        ty = self.y - 3
-        for ln in econ_lines:
-            draw(self.c, ML + 12, ty, ln, "Inter-Bold", 9.4, BRAND["ink"])
-            ty -= 12.2
-        self.y -= eh + 12
+            # the label sits on the first body baseline, so the two columns align
+            base = self.y - ba
+            draw(self.c, ML, base, label, "Inter-Bold", 7.2, BRAND["secondary"])
+            draw_lines(self.c, ML + LBLW, self.y, lines, "Inter", BS, DK, 0, lead)
+            self.y -= ba + (len(lines) - 1) * lead + bd + 7
+
+        self.y -= 5
+        top = self.y
+        filled_rect(self.c, ML, top - econ_h, TW, econ_h, BRAND["surface"])
+        filled_rect(self.c, ML, top - econ_h, 3.0, econ_h, BRAND["primary"])
+        draw_lines(self.c, ML + 12, top, econ_lines, "Inter-Bold", ES,
+                   BRAND["ink"], epad, elead)
+        self.y = top - econ_h - 14
 
     def finish(self):
         footer(self.c, self.page)
@@ -621,22 +689,112 @@ def build(out):
     return d.page
 
 
-# ----------------------------------------------------------------- guard
+# ----------------------------------------------------------------- checks
+def layout_check(path):
+    """Every line is checked before this file is handed to anyone: that each line
+    sits inside the text column, that the spacing to the next line is right and
+    uniform, and that text inside a tinted card is not crowded against its edge.
+    This is not optional and it is not a visual spot check."""
+    import pymupdf
+    doc = pymupdf.open(path)
+    bad = []
+    TOL = 0.75
+
+    for page in doc:
+        pno = page.number + 1
+
+        # ---- collect every text line with its size and baseline (top-down coords)
+        lines = []
+        for block in page.get_text("dict")["blocks"]:
+            if block.get("type") != 0:
+                continue
+            for li in block["lines"]:
+                spans = [sp for sp in li["spans"] if sp["text"].strip()]
+                if not spans:
+                    continue
+                lines.append({
+                    "bbox": li["bbox"],
+                    "size": max(sp["size"] for sp in spans),
+                    "base": max(sp["origin"][1] for sp in spans),
+                    "x0": min(sp["bbox"][0] for sp in spans),
+                    "text": "".join(sp["text"] for sp in spans).strip(),
+                    "block": id(block),
+                })
+
+        # ---- 1. horizontal fit: no line may cross either margin
+        for ln in lines:
+            if ln["bbox"][2] > PW - MR + TOL:
+                bad.append("p%d line overruns right margin by %.1fpt: %r"
+                           % (pno, ln["bbox"][2] - (PW - MR), ln["text"][:46]))
+            if ln["bbox"][0] < ML - TOL:
+                bad.append("p%d line starts left of the margin by %.1fpt: %r"
+                           % (pno, ML - ln["bbox"][0], ln["text"][:46]))
+
+        # ---- 2. vertical rhythm: consecutive lines in the same column
+        by_col = {}
+        for ln in lines:
+            by_col.setdefault((ln["block"], round(ln["x0"], 1)), []).append(ln)
+        for key, group in by_col.items():
+            group.sort(key=lambda l: l["base"])
+            gaps = [(group[i + 1]["base"] - group[i]["base"], group[i])
+                    for i in range(len(group) - 1)]
+            gaps = [(g, l) for g, l in gaps if g < 40]     # ignore paragraph breaks
+            if not gaps:
+                continue
+            for g, ln in gaps:
+                if g < ln["size"] * 1.30:
+                    bad.append("p%d lines too tight: %.2fpt gap on %.1fpt type "
+                               "(%.2fx, need 1.30x): %r"
+                               % (pno, g, ln["size"], g / ln["size"], ln["text"][:40]))
+            vals = [g for g, _ in gaps]
+            if len(vals) > 1 and max(vals) - min(vals) > TOL:
+                bad.append("p%d uneven leading in one column: %.2f to %.2f"
+                           % (pno, min(vals), max(vals)))
+
+        # ---- 3. padding inside tinted cards must be symmetric
+        cards = []
+        for dr in page.get_drawings():
+            if dr.get("fill") is None:
+                continue
+            r = dr["rect"]
+            if r.width > 300 and r.height > 18:
+                cards.append(r)
+        for r in cards:
+            inside = [l for l in lines
+                      if l["bbox"][0] >= r.x0 - 1 and l["bbox"][2] <= r.x1 + 1
+                      and l["bbox"][1] >= r.y0 - 3 and l["bbox"][3] <= r.y1 + 3]
+            if not inside:
+                continue
+            top_pad = min(l["bbox"][1] for l in inside) - r.y0
+            bot_pad = r.y1 - max(l["bbox"][3] for l in inside)
+            if top_pad < 2:
+                bad.append("p%d text crowds the top edge of a card (%.1fpt pad): %r"
+                           % (pno, top_pad, inside[0]["text"][:40]))
+            if abs(top_pad - bot_pad) > 4.0:
+                bad.append("p%d lopsided card padding: %.1fpt top vs %.1fpt bottom: %r"
+                           % (pno, top_pad, bot_pad, inside[0]["text"][:40]))
+    return bad
+
+
 def guard(path):
-    """Scan the RENDERED text, not the source. Amit's rules: no em dash, no double
-    dash, no multiplication sign, and the partnership is always named with 'and'."""
+    """Scan the RENDERED text, not the source. Amit's rules: a proposal is from the
+    company and never from a named person, no em dash, no double dash, no
+    multiplication sign, and the partnership is always named with 'and'."""
     import pymupdf
     doc = pymupdf.open(path)
     txt = "\n".join((p.get_text() or "") for p in doc)
     bad = []
-    for ch, name in ((u"—", "em dash"), (u"--", "double dash"),
-                     (u"×", "multiplication sign"), ("_x_", "x-naming")):
+    for tok in ("Amit", "Mehta", "FRCP", "Prepared by", "prepared by", "PREPARED BY"):
+        n = txt.count(tok)
+        if n:
+            bad.append("attribution %r x%d" % (tok, n))
+    for ch, name in ((u"\u2014", "em dash"), (u"--", "double dash"),
+                     (u"\u00d7", "multiplication sign"), ("_x_", "x-naming")):
         n = txt.count(ch)
         if n:
             bad.append("%s x%d" % (name, n))
-    # an en dash is only legal as the bullet glyph at the start of a line
     stray = [l for l in txt.split("\n")
-             if u"–" in l and not l.strip().startswith(u"–")]
+             if u"\u2013" in l and not l.strip().startswith(u"\u2013")]
     if stray:
         bad.append("en dash in prose x%d" % len(stray))
     for page in doc:
@@ -649,5 +807,13 @@ if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "Amplifier_and_Theris_BusinessCase.pdf"
     pages = build(out)
     print("wrote", out, pages, "pages", os.path.getsize(out), "bytes")
-    b = guard(out)
-    print("guard:", "CLEAN" if not b else "VIOLATIONS %s" % b)
+    content = guard(out)
+    layout = layout_check(out)
+    print("content:", "CLEAN" if not content else "VIOLATIONS")
+    for b in content:
+        print("   !", b)
+    print("layout: ", "CLEAN" if not layout else "%d PROBLEMS" % len(layout))
+    for b in layout[:40]:
+        print("   !", b)
+    if content or layout:
+        sys.exit(1)
