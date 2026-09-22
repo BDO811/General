@@ -15,6 +15,20 @@ Upstream: https://github.com/reacherhq/check-if-email-exists (AGPL-3.0)
 Requires a Rust toolchain plus perl, cc, make and pkg-config. The release build uses
 LTO and compiles roughly 500 crates, so budget 10 to 20 minutes on a small machine.
 
+## The free part, no setup required
+
+```bash
+./prefilter.py prospects.csv
+```
+
+Syntax, MX, disposable domains and role accounts, checked from any machine with
+Python. No port 25, no host, no domain, nothing to pay. Removes a large share of
+a scraped list before anything paid or rate limited touches it, and writes a
+`.pass.txt` of survivors for stage two.
+
+It cannot tell you whether a specific mailbox exists. That is the only part that
+needs infrastructure. See `COSTS.md` for when that is worth owning.
+
 ## Start here
 
 `RUNBOOK.md` has the ordered steps. The short version: the verification identity
