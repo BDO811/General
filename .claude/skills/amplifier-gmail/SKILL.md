@@ -192,6 +192,11 @@ e: amit@amplifierhealth.com
 
 Subject: `Amplifier Health and [Partner]`
 
+**Attribution hard rule:** a proposal document never carries Amit's name.
+No "prepared by", no "From Amit Mehta", no byline, no named contact card. It is always
+from the company. The outreach email keeps its normal sign-off; this governs the attached
+PDF only. Same rule as the `amplifier-proposal` skill.
+
 **Naming hard rule:** never "Amplifier x [Partner]" in a subject, a filename, a
 header or a footer. The word is always "and", and the multiplication sign is never a
 substitute. This matches the same rule in the `amplifier-proposal` skill.

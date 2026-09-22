@@ -38,7 +38,7 @@ BRAND = {
 
 PARTNER_UPPER   = "THERIS"
 PARTNER_DISPLAY = "Theris"
-DATELINE        = "PARTNERSHIP PROPOSAL  ·  SEPTEMBER 2026"
+DATELINE        = "BUSINESS CASE REVIEW  ·  SEPTEMBER 2026"
 
 # ----------------------------------------------------------------- primitives
 def base(top_pt, size_pt, frac=0.758):
@@ -260,6 +260,35 @@ class Doc(object):
             hrule(self.c, self.y, color=DV, thickness=0.4)
         self.y -= 12
 
+    def case(self, title, today, gap, adds, econ):
+        """One reviewed Theris activity: what it is today, where the economics leak,
+        what an acoustic read adds, and the money line. Never splits across pages."""
+        LBLW = 96
+        tw = TW - LBLW
+        rows = [("TODAY", today), ("THE GAP", gap), ("SONA-2 ADDS", adds)]
+        wrapped = [(l, wrap_text(self.c, t, "Inter", 9.7, tw)) for l, t in rows]
+        econ_lines = wrap_text(self.c, econ, "Inter-Bold", 9.4, TW - 24)
+        h = 20 + sum(len(w) * 12.2 + 5 for _, w in wrapped) + 10 + len(econ_lines) * 12.2 + 14
+        self.need(h + 10)
+        if self.y - h < self.BOT:
+            self._newpage()
+        draw(self.c, ML, self.y, title, "Inter-Bold", 11.5, BRAND["ink"])
+        self.y -= 17
+        for label, lines in wrapped:
+            draw(self.c, ML, self.y, label, "Inter-Bold", 7.2, BRAND["secondary"])
+            for ln in lines:
+                draw(self.c, ML + LBLW, self.y, ln, "Inter", 9.7, DK)
+                self.y -= 12.2
+            self.y -= 5
+        eh = 10 + len(econ_lines) * 12.2
+        filled_rect(self.c, ML, self.y - eh + 4, TW, eh, BRAND["surface"])
+        filled_rect(self.c, ML, self.y - eh + 4, 3.0, eh, BRAND["primary"])
+        ty = self.y - 3
+        for ln in econ_lines:
+            draw(self.c, ML + 12, ty, ln, "Inter-Bold", 9.4, BRAND["ink"])
+            ty -= 12.2
+        self.y -= eh + 12
+
     def finish(self):
         footer(self.c, self.page)
         self.c.save()
@@ -274,21 +303,23 @@ def cover(d):
     hs = fit_width(c, PARTNER_UPPER, "Inter-Bold", TW, max_size=96, min_size=20)
     hy = base(hero_top, hs)
     draw(c, ML, hy, PARTNER_UPPER, "Inter-Bold", hs, BRAND["ink"])
-    ss = min(hs - 4, fit_width(c, "AMPLIFIER HEALTH BUSINESS CASE", "Inter-Bold", TW))
+    ss = min(hs - 4, fit_width(c, "ECONOMIC REVIEW BY AMPLIFIER HEALTH", "Inter-Bold", TW))
     sy = hy - hs * 0.92 - 12
-    draw(c, ML, sy, "AMPLIFIER HEALTH BUSINESS CASE", "Inter-Bold", ss, BRAND["secondary"])
+    draw(c, ML, sy, "ECONOMIC REVIEW BY AMPLIFIER HEALTH", "Inter-Bold", ss, BRAND["secondary"])
     ry = sy - ss * 0.92 - 22
     thick_hrule(c, ry, color=BRAND["primary"], thickness=2.6)
     d.y = ry - 16
     d.callout("What This Is",
-        "A revenue and outcomes case for running Sona-2's acoustic layer on the telehealth "
-        "sessions Theris already records, measured against the four things Theris already "
-        "tells the market it delivers: better outcomes, maximized reimbursement, increased "
-        "utilization and reduced liability. United States only. No new product for Theris "
-        "to sell, no added Care Coordinator or clinician time, and no change to how a "
-        "session runs.")
+        "A line by line economic review of the Theris business. Each clinical service "
+        "line, the Care Coordinator operating model, each of the four claims on the "
+        "technology page, and the facility relationship, taken one at a time, asking "
+        "where reading the voice inside that activity creates an economic case and what "
+        "it is worth. United States only. Written after your reply, not as an "
+        "introduction.")
     d.y -= 6
-    draw(c, ML, d.y, "Prepared by Amit Mehta, MD, FRCP  ·  CEO, Amplifier Health  ·  amit@amplifierhealth.com",
+    # Attribution: company only. No byline, no "prepared by", no person's name.
+    draw(c, ML, d.y,
+         "Amplifier Health  ·  amplifierhealth.com  ·  partnerships@amplifierhealth.com",
          "Inter", 8.6, MED)
     footer(c, 1)
     c.showPage()
@@ -300,279 +331,291 @@ def cover(d):
 
 
 # ----------------------------------------------------------------- content
-# Every claim about Theris below traces to theris.ai (Home, Technology,
-# ClinicalServices, About, Team) unless explicitly marked as press coverage.
+# A line by line economic review of the Theris business. Every description of what
+# Theris does traces to theris.ai (Home, Technology, ClinicalServices, About, Team).
 def build(out):
     d = Doc(out)
     cover(d)
 
     # ============================================================ 01
-    d.section("01", "What Theris Does")
-    d.h2("Read From Your Own Site, Not From Press Coverage")
-    d.bullet("Theris delivers geriatric behavioral health into congregate living "
-             "facilities. The company was founded as Empower Nation and rebranded to "
-             "Theris around a mission to transform geriatric behavioral health delivery. "
-             "This is a senior living company, not a general behavioral health company.")
-    d.bullet("The delivery model is hybrid and it is the most interesting thing about "
-             "the business. A dedicated Care Coordinator is physically on site, sets up "
-             "and facilitates the session, and handles documentation. The clinician "
-             "joins by telehealth. Familiar faces on site, specialist supply from "
-             "anywhere. Psychiatrists, psychologists, nurse practitioners, LCSWs and "
-             "LPCs sit behind that screen.")
-    d.bullet("Seven active states with three more launching in Q1 2026, built out from "
-             "Oklahoma City through New Jersey, Colorado, Ohio, Texas, Pennsylvania and "
-             "Virginia. In network with all major insurance plans.")
-    d.bullet("The clinical scope is depression in high acuity patients with PHQ-9 "
-             "monitoring, anxiety and PTSD with GAD-7 assessment, dementia related "
-             "behaviors, mood disorders, substance use, and adjustment and loss. Two of "
-             "those instruments matter enormously for what follows.")
-    d.bullet("The promise to the facility operator is zero staff burden. The promise to "
-             "the market is From Treatment to Outcome: measurable disease progression "
-             "tracking, predictive models, evidence based pathways to recovery. Theris "
-             "is selling measurement, not sessions.")
-    d.bullet("The stack integrates with Athena Health and Point Click Care. The founding "
-             "team previously took the largest US mobile healthcare company public on "
-             "Nasdaq at a $1.1 billion valuation, and the AI organization is led by a "
-             "KAUST computer science professor with published researchers under him.")
+    d.section("01", "How To Read This")
+    d.h2("A Review of Your Business, Not a Pitch")
+    d.para("This document does not argue that Theris needs an acoustic model. It works "
+           "the other way around. It takes each thing Theris already does, one at a "
+           "time, and asks a single question: is there an economic case for reading the "
+           "voice inside that activity, and what is it worth?")
+    d.para("Six clinical service lines, one operating model, four product claims and one "
+           "facility relationship. Each gets the same treatment: what it is today, where "
+           "the economics leak, what an acoustic read adds, and the money line. Where "
+           "there is no case, or where the evidence is thin, that is stated rather than "
+           "papered over. Section 06 collects the weak spots in one place.")
+    d.para("Everything below is United States mechanics, because Theris operates in seven "
+           "states with three more launching in Q1 2026 and nowhere else.")
 
-    d.stats([
-        ("7 + 3", "STATES", "Active, plus three in Q1 2026"),
-        ("2", "ROLES PER VISIT", "Coordinator on site, clinician remote"),
-        ("0", "STAFF BURDEN", "Theris's own promise to operators"),
-    ])
-
-    d.note("One open item on scope",
-        "Press coverage at launch described a broader facility mix than the site does, "
-        "including VA community residences, sober living homes and K-12 schools, and "
-        "named the Department of Veterans Affairs as a major client. None of that appears "
-        "on theris.ai, which is entirely congregate and senior living. This document is "
-        "built on the site. Worth one question on the call, because a VA book changes the "
-        "contracting rail and the size of the opportunity.")
+    d.callout("The One Idea Underneath All Of It",
+        "Theris already captures a telehealth session, facilitated by a Care Coordinator "
+        "who is physically in the room, across every one of these service lines. That "
+        "audio is currently used once, to deliver and document care. Sona-2 reads it a "
+        "second time, acoustically, and returns a clinical signal. Every case below is a "
+        "different answer to the question of what that second read is worth in that "
+        "specific part of the business.")
 
     # ============================================================ 02
-    d.section("02", "Where Sona-2 Sits")
-    d.h2("The Session Is Already Recorded. We Read the Voice.")
-    d.bullet("The telehealth encounter is captured end to end today, facilitated by the "
-             "Care Coordinator who is already in the room. That is the integration point. "
-             "No new capture step, no consent change, no clinician time, no change to how "
-             "a visit runs.")
-    d.bullet("Theris already charts PHQ-9 and GAD-7. Sona-2's classifiers are calibrated "
-             "against PHQ-9, GAD-7 and PCL-5. The output lands inside the instruments "
-             "Theris already uses rather than arriving as a parallel score nobody knows "
-             "how to read or chart.")
-    d.bullet("Sona-2 analyzes acoustics, not the transcript. It reads how the resident "
-             "sounds rather than what they said. That makes it a genuinely independent "
-             "second read on the same session, not a second opinion drawn from the same "
-             "evidence the clinician already weighed.")
-    d.bullet("Signal starts at the first encounter. There is no enrollment period and no "
-             "baseline to establish before the measurement is usable. In a population "
-             "with the turnover of congregate living, a model that needs history before "
-             "it says anything is a model that misses the residents who move fastest.")
-    d.bullet("Integration is one HTTPS POST after the session and a JSON response in "
-             "seconds, asynchronous and server side, sitting inside the documentation "
-             "pipeline Theris already runs into Athena and Point Click Care. A HIPAA BAA "
-             "is executed at account creation, audio is processed and discarded, and no "
-             "audio is stored on Amplifier systems.")
+    d.section("02", "The Six Clinical Service Lines")
+    d.h2("Depression, Anxiety, Dementia, Mood, Substance Use, Loss")
+
+    d.case("Depression in High Acuity Patients",
+        "PHQ-9 monitoring and evidence based intervention, administered by a clinician "
+        "over telehealth, episodically.",
+        "PHQ-9 is self report filtered through a rater on a video call, and it is least "
+        "reliable exactly here: high acuity, cognitively impaired, and often not candid. "
+        "Close to half of nursing home residents are depressed. In one Ohio study 48 "
+        "percent screened positive, 23 percent were receiving no treatment at all, and "
+        "only 2.5 percent were getting any behavioral therapy.",
+        "A passive acoustic depression severity read on every session, calibrated against "
+        "PHQ-9, that does not depend on what the resident chooses to report. It lands in "
+        "the instrument Theris already charts.",
+        "Two revenue paths at once. Enrollment: 99484 at about $55 per patient per month, "
+        "or the collaborative care codes at about $130 per subsequent month. Facility: a "
+        "PDPM nursing case mix split worth roughly $30 per resident per day. This is the "
+        "largest line in the business and the largest case in this document.")
+
+    d.case("Anxiety and PTSD",
+        "GAD-7 assessment and trauma informed care, covering generalized anxiety, PTSD "
+        "and social anxiety.",
+        "GAD-7 is a point in time questionnaire for a condition that fluctuates day to "
+        "day. Social anxiety in particular suppresses the very self report the instrument "
+        "depends on, and late life PTSD is chronically under identified.",
+        "An acoustic anxiety index on every session, plus PCL-5 calibration, which turns "
+        "an episodic questionnaire into a continuous measure without adding a single "
+        "question to the visit.",
+        "Anxiety is a qualifying diagnosis for the same BHI and collaborative care "
+        "enrollment as depression, so it feeds the same $55 to $130 per month line from a "
+        "population that is currently harder to identify. If there is a VA book behind "
+        "this business, PCL-5 calibration is the single most relevant thing Amplifier has.")
+
+    d.case("Dementia Related Behaviors",
+        "Person centered, non pharmacological management of BPSD: agitation and "
+        "aggression, wandering and restlessness, sleep disturbance.",
+        "BPSD is managed reactively, after an incident. The intervention is the right one "
+        "and the timing is the problem, because nobody sees the escalation coming.",
+        "Clarity, the cognitive model, runs on the same session audio and reads acoustic "
+        "markers of agitation and cognitive decline ahead of the incident, turning a "
+        "reactive service into a scheduled one.",
+        "This is the most undervalued line. 99483, cognitive assessment and care plan, "
+        "pays about $293 non facility or $170 facility as a single encounter, more than "
+        "five months of BHI. And the operator side is bigger: see the Five-Star "
+        "antipsychotic case in Section 05.")
+
+    d.case("Mood Disorders",
+        "Bipolar disorder management and mood stabilization, with dosing and physiology "
+        "considerations specific to older adults.",
+        "Relapse happens between visits. A switch into hypomania or a depressive turn is "
+        "visible in days and the next scheduled session may be weeks out.",
+        "Prosodic change detection against the resident's own prior sessions, which "
+        "flags the direction of travel rather than the absolute score.",
+        "Collaborative care subsequent month billing on a population already enrolled, "
+        "plus avoided transfer. Honest caveat: acoustic detection of a manic switch is "
+        "less validated in our own work than depression or anxiety, and this line should "
+        "be scoped as exploratory in any pilot rather than promised.")
+
+    d.case("Substance Use",
+        "Age appropriate treatment for alcohol use disorder, prescription medication "
+        "misuse and addiction recovery.",
+        "Identification, almost entirely. Older adult substance use is massively under "
+        "detected, and the standard screening instruments were not built for this cohort "
+        "or for a resident whose family is in the room.",
+        "Acoustic markers associated with sedation and intoxication on a session the "
+        "resident is already attending for another reason, which is the only realistic "
+        "way to surface this population at scale.",
+        "SBIRT billing through G0396 and G0397, roughly $29 and $58 per encounter, is the "
+        "direct code path, though the identification value is worth more than the code. "
+        "Honest caveat: this is the least validated of the six for Sona-2 today. Treat it "
+        "as a research line in a pilot, not a revenue commitment.")
+
+    d.case("Adjustment and Loss",
+        "Adjustment disorders, loss of independence and end of life support, including "
+        "grief and bereavement.",
+        "These are transition triggered and time boxed. Catching the transition is the "
+        "entire clinical and commercial game, and the transitions that matter are a new "
+        "admission, a death on the unit, and a functional decline.",
+        "Change detection against the resident's own baseline from session one, with no "
+        "enrollment period, which matters in a population that turns over fast.",
+        "This is the enrollment pipeline for everything above it. Among residents "
+        "admitted without pre-existing depression, 9.3 to 14.2 percent are diagnosed "
+        "within 90 days and 21.6 percent within a year. Those are new billable episodes "
+        "that only exist if somebody notices the transition.")
 
     # ============================================================ 03
-    d.section("03", "Against Theris's Own Claims")
-    d.h2("Measured On What You Already Sell")
-    d.para("Theris tells the market it delivers Better Outcomes, Maximized Reimbursement "
-           "and Increased Utilization, and adds Reduced Liability on the technology page. "
-           "Those four are the right frame for this conversation, so this section uses "
-           "them rather than inventing a new one. In each case the question is the same: "
-           "what does an acoustic read add to a claim Theris is already making?")
-
-    d.h3("Better Outcomes")
-    d.para("The site claims standardized protocols, SOP compliance and objective "
-           "measurement. Today that objectivity comes from a clinician administered "
-           "PHQ-9 or GAD-7, which is self report filtered through a rater on a video "
-           "call. Sona-2 measures something the resident is not choosing to report. "
-           "That gap matters most exactly where Theris's clinical scope is heaviest: "
-           "dementia related behaviors, where self report is least reliable, and high "
-           "acuity depression, where it is least candid. The site also promises "
-           "longitudinal tracking against baseline and historical data. Sona-2 produces "
-           "that trend line from session one.")
-
-    d.h3("Maximized Reimbursement")
-    d.para("Theris already auto codes billing and diagnosis, auto generates audit "
-           "documentation and claims it never misses a modifier. That is a strong engine "
-           "and it solves coding for a patient somebody already identified. It does not "
-           "find the patient. Sona-2 runs on every encounter and surfaces residents who "
-           "qualify for a behavioral health program and are not enrolled. The existing "
-           "Theris engine then does what it already does well. This is the highest value "
-           "seam in the whole partnership, because Theris's strength sits directly "
-           "downstream of the gap.")
-
-    d.h3("Increased Utilization")
-    d.para("The site sells see more patients through time saved, 10 to 15 minutes per "
-           "session from auto drafted charts. That is the supply side of utilization and "
-           "it is already solved. Risk stratification is the demand side. Sorting "
-           "residents into low, moderate and high risk puts the clinician hours Theris "
-           "just freed up in front of the residents where they change an outcome, rather "
-           "than spreading them evenly across a census. Same pillar Theris already "
-           "markets, a lever it does not have yet.")
-
-    d.h3("Reduced Liability")
-    d.para("Theris generates multi page audit reports for CMS audits on every session. An "
-           "independent acoustic measurement in that record strengthens the same "
-           "documentation, and it contributes something the audit report does not "
-           "currently contain: a data point not derived from the clinician's own note.")
+    d.section("03", "The Operating Model")
+    d.h2("The Care Coordinator Is the P&L")
+    d.para("A dedicated Care Coordinator physically on site, in every facility, is the "
+           "most expensive fixed cost in this business and the thing that makes it work. "
+           "Familiar faces improve engagement, the coordinator handles setup, "
+           "facilitation and documentation, and the operator gets the zero staff burden "
+           "Theris promises. It is also the number that decides the margin, because "
+           "everything scales with how many residents one coordinator can carry.")
+    d.case("Care Coordinator Throughput",
+        "One coordinator facilitates sessions for a facility's residents, queuing whoever "
+        "is scheduled.",
+        "Every resident gets roughly the same allocation of coordinator and clinician "
+        "time regardless of risk. That is the default in the absence of a way to rank "
+        "them, and it caps residents per coordinator.",
+        "A risk ranking across every resident in the facility, refreshed every session, "
+        "so the coordinator queues by who is deteriorating rather than by who is next on "
+        "the list.",
+        "This is the highest leverage number in the whole business. Every additional "
+        "resident one coordinator can carry drops straight to gross margin, and it needs "
+        "no new headcount, no new contract and no new facility. It cannot be sized from "
+        "outside: it needs the current average caseload per coordinator, which is ask "
+        "number three in Section 06.")
 
     # ============================================================ 04
-    d.section("04", "The Revenue Math")
-    d.h2("United States Only, Two Payment Rails")
-    d.para("Theris operates in seven states with three more coming, in network with all "
-           "major plans. Everything below is US mechanics. Two rails matter and they pay "
-           "different people. The first pays Theris directly for services it already "
-           "delivers. The second pays the facility operator and the health plan, and it "
-           "is the rail that decides whether Theris's contract gets renewed.")
+    d.section("04", "The Four Product Claims")
+    d.h2("Tested Against What the Technology Page Promises")
 
-    d.kicker("Rail one: codes Theris bills")
-    d.table("CODE AND SERVICE  ·  2026 MEDICARE NATIONAL AVERAGE", [
-        ("99484", "Behavioral Health Integration, general, per month", "~$55"),
-        ("99492", "Collaborative Care, initial month, first 70 min", "~$163"),
-        ("99493", "Collaborative Care, subsequent month, 60 min", "~$130"),
-        ("99494", "Collaborative Care, each additional 30 min", "~$70"),
-        ("99490", "Chronic Care Management, per month, stackable", "~$66"),
-        ("99483", "Cognitive assessment and care plan, non-facility", "~$293"),
-        ("99483", "Cognitive assessment and care plan, facility", "~$170"),
-        ("G0444", "Annual depression screening", "~$18"),
-    ])
-    d.para("National midpoints, not exact figures, and they move by state and payer. Two "
-           "things are worth pulling out. The collaborative care codes pay roughly two "
-           "and a half times the general BHI code for the same enrolled patient, so which "
-           "code a patient lands in matters as much as whether they are enrolled. And "
-           "99483 is a single encounter worth more than five months of BHI, sitting "
-           "directly on the dementia population that is already a named part of the "
-           "Theris clinical scope.")
+    d.case("Realtime Analysis and Improved Outcomes",
+        "Continuous AI analysis during the encounter, longitudinal tracking against "
+        "baseline, recovery markers, compared against billions of clinical datapoints.",
+        "It is one modality. Language and the clinician's own observation both flow from "
+        "the same evidence, so a second opinion drawn from them is not independent.",
+        "A genuinely independent second read. Sona-2 analyzes acoustics, not the "
+        "transcript: how the resident sounds rather than what they said.",
+        "Two independent modalities agreeing is a materially stronger outcomes claim than "
+        "one modality repeated, in an analyst conversation, a payer conversation and a "
+        "regulatory file. It is also the cheapest credibility Theris can buy.")
 
-    d.kicker("The enrollment gap, sized")
-    d.callout("The Formula",
-        "(newly enrolled patients per facility)  x  (number of facilities)  x  ($55 per "
-        "month)  =  monthly recurring revenue. At 10 newly enrolled residents across 200 "
-        "facilities, that is 2,000 residents, about $110,000 a month, about $1.3 million "
-        "a year. Only the $55 is a real number. The other two inputs are illustrative and "
-        "have to come from Theris.")
-    d.para("Run on collaborative care instead of general BHI, at roughly $130 per patient "
-           "per subsequent month, the same resident count produces about $260,000 a month "
-           "or $3.1 million a year. The spread between those two outcomes is wider than "
-           "the spread between any two honest guesses at facility count, which is why the "
-           "code mix is worth settling before the volume estimate is.")
+    d.case("Maximized Reimbursement",
+        "Automatic billing code determination, intelligent modifier suggestions, auto "
+        "generated audit documentation.",
+        "It codes a patient somebody already identified. It does not find the patient. "
+        "Every unenrolled but eligible resident is invisible to a coding engine no matter "
+        "how good the engine is.",
+        "A read on every encounter, which surfaces residents who qualify and are not "
+        "enrolled. The existing Theris engine then does what it already does well.",
+        "The formula is (newly enrolled per facility) x (facilities) x ($55 per month). At "
+        "10 residents across 200 facilities that is about $1.3 million a year on general "
+        "BHI, or about $3.1 million on collaborative care at $130. Only the rates are "
+        "real numbers. This is the highest value seam in the partnership, because the "
+        "Theris strength sits directly downstream of the gap.")
 
-    d.kicker("Rail two: what the operator and the plan get paid")
-    d.para("Under PDPM, signs and symptoms of depression identified through the PHQ-9 "
-           "resident mood interview or the staff assessment are a case mix split in the "
-           "Nursing component. A resident in Clinically Complex with a function score of "
-           "0 to 5 classifies at a nursing CMI of 1.62 without depression indicators and "
-           "1.87 with them. Depression splits Special Care High and Special Care Low too.")
-    d.para("That 0.25 CMI difference against an FY2026 urban nursing base of roughly $122 "
-           "a day is about $30 per resident per day, or roughly $800 to $900 across a "
-           "typical covered Part A stay. The base rate is the FY2025 figure carried "
-           "forward at the finalized 3.2 percent update and should be confirmed against "
-           "Table 6 of the FY2026 final rule before it goes in front of an operator.")
-    d.para("Theris does not bill that. The operator does. Which is the point, because the "
-           "operator is who renews the contract. And the data path already exists: Theris "
-           "integrates with Point Click Care, which is where the MDS lives. A behavioral "
-           "signal that reaches Section D accurately is worth real money to the "
-           "administrator Theris is already selling zero staff burden to.")
+    d.case("Increased Utilization",
+        "10 to 15 minutes saved per session through auto drafted charts syncing to the "
+        "EHR, sold as see more patients.",
+        "That is the supply side of utilization and it is already solved. Freeing an hour "
+        "does not say whose hour it should become.",
+        "The demand side. Stratification puts the recovered time in front of the "
+        "residents where it changes an outcome instead of spreading it evenly.",
+        "Same pillar Theris already markets, a lever it does not have yet. Sizes off the "
+        "same caseload number as Section 03, and the two compound: more time freed, "
+        "better aimed.")
 
-    d.note("The guardrail, and it is not optional",
-        "This only works as accuracy, never as inflation. The value is identifying "
-        "residents who genuinely screen positive and are currently going unidentified. It "
-        "is not producing depression codes. Any version that reads as upcoding assistance "
-        "fails compliance review at the first sophisticated operator and puts the whole "
-        "relationship at risk, so the acoustic signal has to route to a clinician "
-        "assessment that stands on its own, with an audit trail showing that it did. "
-        "Theris already generates audit documentation on every session, so the mechanism "
-        "for that trail is built.")
-
-    d.bullet("Medicare Advantage risk adjustment: every 0.1 increase in a member's RAF "
-             "score is worth roughly $1,000 to $1,040 per member per year in plan "
-             "revenue, and depression carries HCC weight under version 28 when coded as "
-             "moderate or severe active major depressive disorder. Where Theris serves "
-             "MA covered residents, the plan is a natural third buyer.")
-    d.bullet("Avoidable transfer is the cost side. More than a third of residents in "
-             "Medicare and Medicaid covered nursing facilities are hospitalized at least "
-             "once, and up to 39 percent of those admissions are considered potentially "
-             "avoidable with more effective care. Untreated behavioral health is an "
-             "independent driver of that transfer rate, which is the same argument "
-             "Theris's own site makes about behavioral incidents and outcomes.")
+    d.case("Reduced Liability",
+        "Multi page audit reports generated for every session, ready for CMS audits.",
+        "Every element of that report derives from the clinician's own note. It documents "
+        "the encounter thoroughly, and it corroborates nothing.",
+        "One data point in the record that was not produced by the person being audited.",
+        "It also supplies the audit trail the coding accuracy argument in Section 05 "
+        "requires, so the mechanism is already built and this costs nothing to add.")
 
     # ============================================================ 05
-    d.section("05", "Buy Versus Build")
-    d.h2("The Honest Version of This Conversation")
-    d.para("Theris has a real AI organization: a KAUST computer science professor as "
-           "Chief AI Officer, a head of AI research publishing in Nature Methods and "
-           "Nature Machine Intelligence, a senior researcher working on multimodal "
-           "foundation models that integrate vision, language and behavioral signals, and "
-           "a biostatistician on longitudinal modeling in aging populations. The site "
-           "claims training on the most comprehensive behavioral health dataset in the "
-           "world across millions of clinical encounters. This is not a capability gap "
-           "and it would be insulting to pitch it as one.")
-    d.para("So the question is not whether Theris could build an acoustic layer. It is "
-           "whether that is where this particular team should spend the next eighteen "
-           "months. Two things are genuinely different about Sona-2 and both are worth "
-           "stating plainly.")
-    d.bullet("The assets are not the same. A behavioral health encounter corpus is "
-             "enormously valuable for the scribe, coding and outcomes stack Theris has "
-             "built on it. Sona-2 is trained on 2.5 million clinically labeled voice "
-             "interactions with validated ground truth, which is a different asset built "
-             "for a different job: mapping acoustic features to a calibrated clinical "
-             "score. Volume of encounters and volume of labeled acoustic ground truth are "
-             "not interchangeable, and the second one is the harder one to accumulate.")
-    d.bullet("Sona-2 is a purpose built acoustic foundation model rather than a general "
-             "model adapted to audio. That distinction is defensible in an analyst "
-             "conversation, in a payer conversation and in a regulatory file, and it is "
-             "the kind of claim that is difficult to make credibly about a model that "
-             "started life somewhere else.")
-    d.para("On regulation, press coverage says Theris is pursuing FDA Class II. Amplifier "
-           "is working the same ground on a voice derived depression biomarker. Those two "
-           "efforts are complementary rather than competitive, and citing external "
-           "validation is faster and more credible than generating a second internal "
-           "metric.")
+    d.section("05", "The Facility Relationship")
+    d.h2("What the Operator Gets Paid, and Why That Decides Renewals")
+    d.para("Theris sells to facility operators and bills insurance. The operator renews "
+           "the contract. So the strongest commercial argument in this document is not "
+           "about what Theris earns, it is about what the operator earns because Theris "
+           "is in the building. Two levers, and the Point Click Care integration means "
+           "the data path for both already exists.")
+
+    d.case("PDPM Nursing Case Mix",
+        "Depression identified through the PHQ-9 resident mood interview or the staff "
+        "assessment is a case mix split in the PDPM Nursing component.",
+        "A resident in Clinically Complex with a function score of 0 to 5 classifies at a "
+        "nursing CMI of 1.62 without depression indicators and 1.87 with them. The gap "
+        "between those two is a resident who screens positive and is not identified.",
+        "An acoustic read that routes to a clinician assessment, which either confirms "
+        "the finding or does not, with an audit trail either way.",
+        "The 0.25 CMI difference against an FY2026 urban nursing base of roughly $122 a "
+        "day is about $30 per resident per day, or $800 to $900 across a typical covered "
+        "Part A stay. Theris does not bill it. The operator does, which is exactly why it "
+        "works as a renewal argument.")
+
+    d.case("Five-Star and the Antipsychotic Measure",
+        "Theris treats dementia related behaviors with person centered, non "
+        "pharmacological interventions.",
+        "The long stay antipsychotic quality measure moved to a hybrid method in January "
+        "2026, combining MDS section N with claims data. The national rate rises from "
+        "14.64 percent to 16.98 percent under the new calculation, and it rolls into "
+        "Five-Star with providers sorted into deciles. Every operator's number just got "
+        "worse through no change in their own behavior.",
+        "Earlier detection of escalating behavior, which is what makes a non "
+        "pharmacological intervention possible instead of theoretical.",
+        "Five-Star drives census and Medicare Advantage network inclusion. A service that "
+        "measurably protects an operator's antipsychotic decile in the year the measure "
+        "got harder is not a nice to have, it is the reason the contract survives. This "
+        "is the most timely argument Theris has available right now and it is worth "
+        "leading with in operator conversations.")
+
+    d.note("The guardrail on both of these, and it is not optional",
+        "Both levers work as accuracy and never as inflation. The value is identifying "
+        "residents who genuinely screen positive and are currently going unidentified, "
+        "roughly a quarter of residents in the prevalence data. It is not producing "
+        "depression codes or gaming a decile. Any version that reads as upcoding "
+        "assistance fails compliance review at the first sophisticated operator and puts "
+        "the relationship at risk. The acoustic signal routes to a clinician assessment "
+        "that stands on its own, and the Theris audit report is where that shows.")
 
     # ============================================================ 06
-    d.section("06", "The Ask")
-    d.h2("Three Numbers and One Retrospective Run")
-    d.para("Three numbers turn this from a structured argument into an actual model. All "
-           "three live inside Theris and none are public.")
-    d.table("THE THREE INPUTS", [
+    d.section("06", "Cost, Limits and the Ask")
+    d.h2("What It Costs, Where It Is Weak, What Is Needed")
+
+    d.h3("Cost to serve")
+    d.para("Haven, the mental and behavioral health model, is $0.18 per assessment or "
+           "$0.12 per minute of audio, scaling linearly with encounter volume. At one "
+           "assessment per resident per week that is $9.36 per resident per year, against "
+           "a PDPM swing of $800 to $900 a stay and single encounters worth $293. A free "
+           "evaluation tier covers 100 assessments a month. Cost to serve is not the "
+           "variable that decides any case in this document.")
+
+    d.h3("Where this is weakest, stated plainly")
+    d.bullet("Substance use is the least validated of the six service lines for Sona-2. "
+             "It belongs in a pilot as a research line, not as a revenue commitment.")
+    d.bullet("Acoustic detection of a manic switch is less validated than depression or "
+             "anxiety. Scope the mood disorder line as exploratory.")
+    d.bullet("The Five-Star antipsychotic argument is causally plausible and not yet "
+             "demonstrated. It needs an operator willing to measure it, which is a "
+             "different and slower pilot than the enrollment one.")
+    d.bullet("Every dollar figure here is a public benchmark. None of it is Theris data, "
+             "and the spread between the illustrative and the real numbers is the whole "
+             "reason for the three asks below.")
+
+    d.h3("The three numbers")
+    d.table("WHAT ONLY THERIS HAS", [
         ("Facility count", "The real number, by state and by facility type", ""),
         ("Missed enrollment", "Residents per facility eligible for BHI or CoCM, not enrolled", ""),
-        ("Clinician caseload", "Average caseload and how visit frequency is allocated today", ""),
-    ], col_x=(0, 150), row_h=19)
+        ("Coordinator caseload", "Average residents per Care Coordinator today", ""),
+    ], col_x=(0, 160), row_h=19)
 
-    d.h3("The Proposed Path")
-    d.bullet("Run Sona-2 against a retrospective slice of telehealth session audio Theris "
-             "has already captured. No workflow change, no consent change, no Care "
-             "Coordinator or clinician time. The output is a count of residents the model "
-             "flags who are not currently enrolled, plus agreement statistics against the "
-             "PHQ-9 and GAD-7 scores already in those charts.")
-    d.bullet("That second output is the one worth optimizing for. Agreement against "
-             "instruments Theris already trusts is the fastest credible proof, and it is "
-             "a validation datapoint Theris can use independently of whether this "
-             "partnership goes anywhere.")
-    d.bullet("Compare the flagged count against enrollment records to produce the real "
-             "missed enrollment rate, which is input two above and the number the entire "
-             "revenue case rests on.")
-    d.bullet("If it holds, move to a prospective pilot of 200 to 500 residents across 60 "
-             "to 90 days in a single operator group, instrumented to measure enrollment "
-             "lift, clinician time reallocation and facility level trend reporting at "
-             "once. A free evaluation tier covers 100 assessments a month before any of "
-             "this costs anything.")
-    d.bullet("Pricing when it does: $0.18 per assessment, or $0.12 per minute of audio, "
-             "scaling linearly with encounter volume. At one assessment per resident per "
-             "week that is $9.36 per resident per year, against events costing thousands. "
-             "Cost to serve is not the variable that decides this.")
+    d.h3("The one step that tests all of it")
+    d.para("Run Sona-2 against a retrospective slice of telehealth session audio Theris "
+           "has already captured. No workflow change, no consent change, no Care "
+           "Coordinator or clinician time. It returns two things: a count of residents "
+           "the model flags who are not currently enrolled, and agreement statistics "
+           "against the PHQ-9 and GAD-7 scores already sitting in those charts.")
+    d.para("The second output is the one worth optimizing for. Agreement against "
+           "instruments Theris already trusts is the fastest credible proof available, "
+           "and it is a validation datapoint Theris keeps regardless of whether anything "
+           "else here goes forward. Integration when it does: one HTTPS POST after the "
+           "session, JSON back in seconds, asynchronous and server side, inside the "
+           "documentation pipeline already running into Athena and Point Click Care. BAA "
+           "at account creation, audio processed and discarded, nothing stored.")
 
-    d.callout("From Amit Mehta  ·  CEO, Amplifier Health",
-        "The retrospective run is the whole proposal. It costs Theris a data pull and "
-        "nothing else, it changes nothing about how a visit runs, and it either produces "
-        "a missed enrollment number and an agreement statistic that justify everything "
-        "above, or it does not. Everything else here is scaffolding around that one "
-        "measurement. amplifierhealth.com, docs.amplifierhealth.com, "
-        "console.amplifierhealth.com. Up and running in under five minutes.")
+    d.callout("From Amplifier Health",
+        "The retrospective run costs a data pull and nothing else, and it either produces "
+        "a missed enrollment number and an agreement statistic that carry the cases above "
+        "or it does not. Every number in this document is a public benchmark waiting to "
+        "be replaced by a real one. amplifierhealth.com, docs.amplifierhealth.com, "
+        "console.amplifierhealth.com.")
 
     d.finish()
     return d.page

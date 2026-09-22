@@ -2,7 +2,12 @@
 
 ## What is here
 
-- `Amplifier_and_Theris_BusinessCase.pdf` — 7 page business case, rendered in the Theris brand.
+- `Amplifier_and_Theris_BusinessCase.pdf` — 8 page line by line economic review of the
+  Theris business, rendered in the Theris brand. This is not cold outreach. Theris has
+  already replied, so the document walks each thing they do (six clinical service lines,
+  the Care Coordinator operating model, the four technology page claims, the facility
+  relationship) and states the economic case for reading the voice inside that activity.
+  Each entry follows the same shape: today, the gap, what Sona-2 adds, the money line.
 - `build_theris.py` — the ReportLab generator. Edit the content in `build()` and re-run.
 - `theris-favicon.svg` / `theris-logo.png` — the Theris mark, pulled from theris.ai and
   rendered to PNG for embedding.
@@ -64,6 +69,12 @@ React SPA, so a plain fetch returns only the page title. The copy lives in the c
 sober living homes and K-12 schools, and named the VA as a major client. None of that
 appears on theris.ai. The proposal is built on the site and flags the gap as an open
 item.
+
+## Attribution
+
+No proposal carries a person's name. See `CLAUDE.md` at the repo root. `build_theris.py`
+fails its own check if `Amit`, `Mehta`, `FRCP` or `Prepared by` appears in the rendered
+text.
 
 ## United States only
 

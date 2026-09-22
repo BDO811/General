@@ -40,6 +40,37 @@ written or any draft is created, grep the generated script and the output filena
 for ` x ` and `_x_` and the multiplication sign and fix every hit. Legacy files already on disk that
 carry the old `_x_` name are renamed on next touch.
 
+
+---
+
+## Attribution — Hard Rule (No Exceptions, Every Proposal)
+
+**A proposal document never carries Amit's name.** It is always from the company.
+
+Never write, anywhere on any page of a proposal:
+
+- "Prepared by Amit Mehta", "Prepared by", or any "prepared by" line at all
+- "From Amit Mehta", "FROM AMIT MEHTA", "Dr. Amit Mehta"
+- A byline, a signature block, an author credit, or a named contact card
+- A callout labeled with a person's name and title
+
+Use the company instead:
+
+| Instead of | Write |
+|---|---|
+| `Prepared by Amit Mehta, MD, FRCP · CEO, Amplifier Health` | nothing, or `Amplifier Health · amplifierhealth.com` |
+| `FROM AMIT MEHTA · CEO, AMPLIFIER HEALTH` | `FROM AMPLIFIER HEALTH` |
+| `Amit Mehta, CMO` on a contact card | the company name and its contact routes |
+
+Before any PDF is written, grep the rendered text for "Amit", "Mehta", "FRCP", "Prepared by"
+and "CEO," and fix every hit. A build script for a proposal should fail its own check when
+any of those appear.
+
+**The carve-out is email, and only email.** An outreach email is from a person and keeps its
+normal sign-off ("Thanks / a" plus the name, title and address block, or the real Gmail
+signature). This rule governs the attached document, not the message it rides on. Removing
+the email signature is a separate mistake and just as wrong.
+
 ---
 
 ## Step 0 — Environment Setup

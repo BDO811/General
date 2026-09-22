@@ -167,7 +167,7 @@ compliance_note = ("Every reader study and blinded image review runs on GCP and 
     "systems, with full audit trail documentation supporting FDA, EMA, and other global regulatory submissions.")
 ```
 
-`contact_name`, `contact_email`, and `contact_web` default to Amit's standard Intrinsic contact block and normally don't need to be passed. **`contact_phone` should be Amit's real number, `+1 210 883 5709`, on every proposal** — do not use the `[+1 xxx xxx xxxx]` placeholder going forward.
+`contact_name` is not used on the proposal any more, per the Attribution hard rule: the contact card is company attributed. `contact_email` and `contact_web` still carry the contact routes and normally don't need to be passed. **`contact_phone` should be Amit's real number, `+1 210 883 5709`, on every proposal** — do not use the `[+1 xxx xxx xxxx]` placeholder going forward.
 
 **Section 01 voice rules:**
 - Declarative statements only. Subject + verb + object. Active voice.
@@ -224,6 +224,37 @@ Intrinsic's own wordmark and identity. Every hex traces to their site or logo fi
 any accent carrying body text clears 4.5:1 contrast. The full extraction procedure is in
 the `amplifier-proposal` skill under "Step 2.5 — Extract the Partner's Brand"; it applies
 here unchanged.
+
+
+---
+
+## Attribution — Hard Rule (No Exceptions, Every Proposal)
+
+**A proposal document never carries Amit's name.** It is always from the company.
+
+Never write, anywhere on any page of a proposal:
+
+- "Prepared by Amit Mehta", "Prepared by", or any "prepared by" line at all
+- "From Amit Mehta", "FROM AMIT MEHTA", "Dr. Amit Mehta"
+- A byline, a signature block, an author credit, or a named contact card
+- A callout labeled with a person's name and title
+
+Use the company instead:
+
+| Instead of | Write |
+|---|---|
+| `Prepared by Amit Mehta, MD, FRCP · CEO, Amplifier Health` | nothing, or `Amplifier Health · amplifierhealth.com` |
+| `FROM AMIT MEHTA · CEO, AMPLIFIER HEALTH` | `FROM AMPLIFIER HEALTH` |
+| `Amit Mehta, CMO` on a contact card | the company name and its contact routes |
+
+Before any PDF is written, grep the rendered text for "Amit", "Mehta", "FRCP", "Prepared by"
+and "CEO," and fix every hit. A build script for a proposal should fail its own check when
+any of those appear.
+
+**The carve-out is email, and only email.** An outreach email is from a person and keeps its
+normal sign-off ("Thanks / a" plus the name, title and address block, or the real Gmail
+signature). This rule governs the attached document, not the message it rides on. Removing
+the email signature is a separate mistake and just as wrong.
 
 ---
 
@@ -422,7 +453,9 @@ Confirm:
 **Page 3 — Services + Fit + Contact:**
 - Section 03: "What We Do" — 6 service bullets (fixed, not bespoke)
 - Section 04: "The Right Partner for [Company Name]" — bespoke "The Fit" callout card
-- "Let's Talk" — rounded Slate-50 contact card (Amit Mehta, CMO)
+- "Let's Talk" — rounded Slate-50 contact card, company attributed (Intrinsic Imaging
+  plus contact routes). Never a person's name or title on the card, per the Attribution
+  hard rule above.
 
 ## Design tokens quick reference
 

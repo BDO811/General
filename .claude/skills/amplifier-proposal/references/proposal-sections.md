@@ -3,6 +3,9 @@
 **Naming:** every heading, label, header and footer names the partnership as
 "Amplifier Health and [Partner]". Never "x", never the multiplication sign.
 
+**Attribution:** no page of a proposal carries Amit's name, a byline, a "prepared by"
+line or a named contact card. It is always from the company.
+
 **Brand:** the page is rendered in the partner's extracted palette with their logo
 mark in the top bar. See SKILL.md Step 2.5 and references/pdf-template.md.
 
@@ -94,7 +97,8 @@ Section 06 does not exist in the Amplifier proposal format. Do not include a "Ne
 Section label: "07  ·  GET STARTED"
 H2: "Everything You Need to Build"
 
-Dark callout box labeled "FROM AMIT MEHTA  ·  CEO, AMPLIFIER HEALTH":
+Dark callout box labeled "FROM AMPLIFIER HEALTH" (never a person's name, see the
+Attribution hard rule in SKILL.md):
 "I'm looking forward to speaking with you. In the meantime, if you'd like to explore the platform, here is everything you need. Fully self-service. Fully documented. You should be up and running in under 5 minutes."
 
 Three full-width resource boxes:
