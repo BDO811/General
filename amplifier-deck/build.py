@@ -63,7 +63,7 @@ THEMES = {
   --glow-b:rgba(16,185,129,.17);
   --bg-opacity:.10;
   --bg-blend:normal;
-  --bg-filter:none;
+  --bg-filter:none;  /* the 8% desaturation is baked into the plates */
   --card:rgba(24,24,27,.55);
   --card-line:rgba(255,255,255,.12);
   --card-text:rgba(255,255,255,.88);
@@ -94,7 +94,7 @@ THEMES = {
   --glow-b:rgba(183,152,98,.22);
   --bg-opacity:.12;
   --bg-blend:multiply;
-  --bg-filter:grayscale(.85) contrast(1.05);
+  --bg-filter:grayscale(.92) contrast(1.05);
   --card:#231200;
   --card-line:rgba(219,204,177,.18);
   --card-text:rgba(219,204,177,.92);

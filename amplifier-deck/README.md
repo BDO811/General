@@ -25,6 +25,7 @@ The `paper` tokens are the real ones, read from the design tokens published at
 | `deck.template.html` | Source template. Edit this, not the built files. |
 | `build.py` | Themes, content data, and asset inlining. |
 | `make-pdf.sh` | Re-exports both PDFs. |
+| `desaturate.py` | One time asset step, bakes the 8% desaturation into the plates. |
 | `shots.sh` | Renders a build's slides to PNG for review. |
 
 ## Slides
@@ -53,7 +54,12 @@ investigational tiers are deliberately left off.
 ## Assets
 
 Backgrounds are Pixabay stock at 10 to 12 percent opacity under a vignette and
-grid, multiplied into the paper stock on the brand theme. Typography is Cormorant
+grid, multiplied into the paper stock on the brand theme. An 8 percent
+desaturation is baked into the plates rather than applied as a CSS filter: a
+filter on that layer makes Chrome rasterize the whole background on print, which
+tripled the exported PDF.
+
+Both URLs are live anchors, so they stay clickable in the exported PDFs. Typography is Cormorant
 Garamond with JetBrains Mono accents, latin subsets only. The logo is the official
 `Amplifier_Brandmark_White_RGB.svg` from amplifierhealth.com, recolored to ink for
 the brand theme.
