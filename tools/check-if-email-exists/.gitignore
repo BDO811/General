@@ -1,0 +1,7 @@
+config.env
+*.jsonl
+*.csv
+.disposable-domains.txt
+__pycache__/
+*.pyc
+.verified-ledger.jsonl
