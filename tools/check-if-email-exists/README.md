@@ -15,6 +15,12 @@ Upstream: https://github.com/reacherhq/check-if-email-exists (AGPL-3.0)
 Requires a Rust toolchain plus perl, cc, make and pkg-config. The release build uses
 LTO and compiles roughly 500 crates, so budget 10 to 20 minutes on a small machine.
 
+## Start here
+
+`RUNBOOK.md` is the ordered set of steps to get this working, with the exact DNS
+records. `./check-dns.sh amplifierhealth.com` verifies them from anywhere and tells
+you what is still wrong.
+
 ## Configure the identity (do this before any real run)
 
 ```bash
