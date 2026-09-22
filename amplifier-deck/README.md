@@ -32,9 +32,11 @@ python3 build.py     # deck.template.html + assets -> amplifier-deck.html
 
 ## Notes on content
 
-Slide 4 is not illustrative. The 17 biomarker signals, the 24 conditions and their
-evidence tiers, and the 8 model pipelines were read from the Amplifier v2
-production API, so the slide matches what the platform actually returns today.
+Slide 4 is not illustrative. The 17 biomarker signals, the 10 established
+conditions, and the 8 model pipelines were read from the Amplifier v2 production
+API, so the slide matches what the platform actually returns today. Only the
+established tier (broadest validation evidence) is shown. The emerging and
+investigational tiers are deliberately left off.
 
 ## Assets
 

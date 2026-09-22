@@ -45,6 +45,17 @@ def font_faces() -> str:
         )
     return "\n".join(out)
 
+# The 10 "established" conditions (broadest validation evidence), from the
+# v2 production API. Emerging and investigational tiers are deliberately
+# left off the slide.
+CONDITIONS = [
+    ("Depression", ""), ("Acute Stress", ""),
+    ("Depression", "Female"), ("Fatigue", ""),
+    ("Anxiety", ""), ("Elevated Blood Pressure", ""),
+    ("Anxiety", "Female"), ("COPD", ""),
+    ("Cognitive Impairment", ""), ("Traumatic Brain Injury", ""),
+]
+
 
 def data_uri(path: pathlib.Path) -> str:
     b64 = base64.b64encode(path.read_bytes()).decode("ascii")
@@ -73,6 +84,15 @@ def main() -> int:
     html = html.replace(
         "__CHIPS__",
         "".join(f'<span class="chip">{s}</span>' for s in SIGNS),
+    )
+    html = html.replace(
+        "__CONDITIONS__",
+        "".join(
+            '<li><span class="dot d-est"></span>{}{}</li>'.format(
+                name, f' <span class="sx">({qual})</span>' if qual else ""
+            )
+            for name, qual in CONDITIONS
+        ),
     )
 
     leftover = re.findall(r"__[A-Z0-9_]+__", html)

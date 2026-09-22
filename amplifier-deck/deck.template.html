@@ -192,17 +192,23 @@ h2{font-weight:300;font-size:4.2cqw;line-height:1.08;letter-spacing:-.01em}
   background:rgba(34,211,238,.055);
   color:rgba(255,255,255,.86);letter-spacing:.02em;white-space:nowrap;
 }
-.tier{margin-bottom:1.25cqw}
-.tier .tl{
-  font-family:var(--mono);font-size:.76cqw;letter-spacing:.22em;
-  text-transform:uppercase;display:flex;align-items:center;gap:.5cqw;margin-bottom:.5cqw;
+.conds{
+  list-style:none;display:grid;grid-template-columns:1fr 1fr;
+  gap:.72cqw 1.9cqw;
+}
+.conds li{
+  display:flex;align-items:center;gap:.72cqw;
+  font-family:var(--mono);font-weight:300;font-size:.97cqw;
+  color:rgba(255,255,255,.88);line-height:1.35;
 }
 .dot{width:.42cqw;height:.42cqw;border-radius:50%;flex-shrink:0}
 .d-est{background:var(--emerald);box-shadow:0 0 8px rgba(16,185,129,.9)}
-.d-emg{background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,.9)}
-.d-inv{background:rgba(255,255,255,.4)}
-.t-est{color:var(--emerald)}.t-emg{color:var(--cyan)}.t-inv{color:var(--faint)}
-.tier .tv{font-size:1.04cqw;color:var(--muted);line-height:1.55;font-family:var(--mono);font-weight:300}
+.conds li span.sx{color:var(--faint)}
+.cnote{
+  margin-top:1.7cqw;padding-top:1.1cqw;border-top:1px solid var(--hair);
+  font-family:var(--mono);font-weight:300;font-size:.82cqw;
+  letter-spacing:.06em;color:var(--faint);
+}
 
 /* ---------- slide 5 ---------- */
 .s5 .inner{text-align:center;display:flex;flex-direction:column;align-items:center}
@@ -275,10 +281,10 @@ h2{font-weight:300;font-size:4.2cqw;line-height:1.08;letter-spacing:-.01em}
   .pane-l .plabel,.pane-r .plabel{font-size:2.7vw;letter-spacing:.2em;padding-bottom:2.5vw;margin-bottom:4vw}
   .chips{gap:1.6vw}
   .chip{font-size:3vw;padding:1.5vw 2.6vw}
-  .tier{margin-bottom:4vw}
-  .tier .tl{font-size:2.8vw;gap:1.6vw;margin-bottom:1.6vw}
+  .conds{grid-template-columns:1fr;gap:2.6vw}
+  .conds li{font-size:3.6vw;gap:2.4vw}
   .dot{width:1.5vw;height:1.5vw}
-  .tier .tv{font-size:3.4vw}
+  .cnote{font-size:2.9vw;margin-top:5vw;padding-top:3.5vw}
 
   .url{font-size:8.6vw}
   .s5 .say{font-size:5.6vw;margin-top:6vw}
@@ -387,7 +393,7 @@ h2{font-weight:300;font-size:4.2cqw;line-height:1.08;letter-spacing:-.01em}
       </div>
       <div class="metrics">
         <div class="stat"><div class="sv"><span>17</span></div><div class="sl">Biomarker Signals</div></div>
-        <div class="stat"><div class="sv"><span>24</span></div><div class="sl">Conditions</div></div>
+        <div class="stat"><div class="sv"><span>10</span></div><div class="sl">Established Conditions</div></div>
         <div class="stat"><div class="sv"><span>8</span></div><div class="sl">Model Pipelines</div></div>
       </div>
     </div>
@@ -397,19 +403,9 @@ h2{font-weight:300;font-size:4.2cqw;line-height:1.08;letter-spacing:-.01em}
         <div class="chips">__CHIPS__</div>
       </div>
       <div class="pane-r">
-        <div class="plabel"><span>Conditions By Evidence Tier</span><span>24</span></div>
-        <div class="tier">
-          <div class="tl t-est"><span class="dot d-est"></span>Established</div>
-          <div class="tv">Depression. Anxiety. Cognitive impairment. Acute stress. Fatigue. COPD. Elevated blood pressure. Traumatic brain injury.</div>
-        </div>
-        <div class="tier">
-          <div class="tl t-emg"><span class="dot d-emg"></span>Emerging</div>
-          <div class="tv">PTSD. ADHD. Alcohol and substance use. Hyperandrogenism. Sleep disorders. Bipolar. Allergy.</div>
-        </div>
-        <div class="tier">
-          <div class="tl t-inv"><span class="dot d-inv"></span>Investigational</div>
-          <div class="tv">Anemia. Dehydration. Migraine. Dry mouth. OCD.</div>
-        </div>
+        <div class="plabel"><span>Established Conditions</span><span>10</span></div>
+        <ul class="conds">__CONDITIONS__</ul>
+        <div class="cnote">Established tier only. Broadest validation evidence.</div>
       </div>
     </div>
   </div>
