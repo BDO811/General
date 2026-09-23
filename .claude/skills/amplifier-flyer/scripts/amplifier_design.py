@@ -179,6 +179,20 @@ class Doc(object):
                          mask=None, preserveAspectRatio=True, anchor="sw")
         return h
 
+    def cover_image(self, path, veil=0.84):
+        """Full bleed background photograph, veiled back to a texture.
+
+        Draw it first, before any type. The cream veil keeps body copy
+        readable. veil is the cream opacity: higher hides more of the photo.
+        """
+        self.c.drawImage(path, 0, 0, width=PW, height=PH,
+                         preserveAspectRatio=False, mask=None)
+        self.c.saveState()
+        self.c.setFillColor(CREAM)
+        self.c.setFillAlpha(veil)
+        self.c.rect(0, 0, PW, PH, stroke=0, fill=1)
+        self.c.restoreState()
+
     def new_page(self):
         self.c.showPage()
         self.page += 1
@@ -338,24 +352,43 @@ def proposal_footer(d, left, total=None):
     d.text(PW - PRO_MR, PG["FOOT_Y"], right, MONO, 8.5, MUTED_P, align="right",
            tracking=0.6)
 
+def _split_hero(words):
+    """Balance a title across two lines by character count."""
+    if len(words) == 1:
+        return words
+    best, bi = None, 1
+    for i in range(1, len(words)):
+        a = " ".join(words[:i]); b = " ".join(words[i:])
+        score = abs(len(a) - len(b))
+        if best is None or score < best:
+            best, bi = score, i
+    return [" ".join(words[:bi]), " ".join(words[bi:])]
+
 def proposal_cover(d, partner, tagline, meta_left, meta_right,
-                   bg_label="Background", bg_text=""):
-    """Cover page. Partner name sets in huge Inter Bold, one or two lines."""
+                   bg_label="Background", bg_text="", bg_image=None,
+                   veil=0.84):
+    """Cover page. Title sets in huge Inter Bold, balanced across two lines.
+
+    tagline may be None to drop the italic line and its rule.
+    bg_image is an optional full bleed photograph, veiled back to a texture.
+    """
+    if bg_image:
+        d.cover_image(bg_image, veil=veil)
     proposal_chrome(d)
     d.text(PRO_ML, PG["META_L_Y"], meta_left.upper(), MONO, 7.4, MUTED_P, tracking=0.8)
     d.text(PW - PRO_MR, PG["META_R_Y"], meta_right.upper(), MONO, 8.4, MUTED_P,
            align="right", tracking=0.8)
 
-    words = partner.upper().split()
-    lines = [words[0], " ".join(words[1:])] if len(words) > 1 else [words[0]]
+    lines = _split_hero(partner.upper().split())
     size = min([d.fit(l, INTER_B, PRO_TW, PG["HERO_MAX"], 26) for l in lines])
     y = PG["HERO_Y"]
     for l in lines:
         d.text(PRO_ML, y, l, INTER_B, size, INK)
         y -= PG["HERO_LEAD"] * (size / PG["HERO_MAX"])
 
-    d.para(PRO_ML, PG["TAGLINE_Y"], tagline, NEWS_I, PG["TAG_SIZE"], ITALIC,
-           PRO_TW, 24)
+    if tagline:
+        d.para(PRO_ML, PG["TAGLINE_Y"], tagline, NEWS_I, PG["TAG_SIZE"], ITALIC,
+               PRO_TW, 24)
     d.rule(PG["COVER_RULE_Y"], INK, 0.5)
 
     by, bh = PG["COVER_BOX_Y"], PG["COVER_BOX_H"]

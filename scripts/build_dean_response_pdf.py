@@ -89,16 +89,18 @@ def row(y, label, value):
     return y - 19
 
 # ------------------------------------------------------------------ cover
+COVER_IMAGE = os.environ.get("COVER_IMAGE") or None
 proposal_cover(
-    d, "Diligence Response",
-    "Fifteen questions, answered in order.",
+    d, "Amplifier Health Diligence Request",
+    None,
     "Confidential  ·  For authorized use only",
     "LP diligence  ·  %s" % DATE,
     "Note on framing",
     "Amplifier is a frontier foundation model company, not an AI application "
     "company. The two are diligenced on different criteria, and answer 2 sets "
     "out why that distinction decides how to read everything else in here. "
-    "Supporting material is attached and referenced by answer number.")
+    "Supporting material is attached and referenced by answer number.",
+    bg_image=COVER_IMAGE)
 proposal_footer(d, FOOT, None)
 
 # ------------------------------------------------------------------ answers
