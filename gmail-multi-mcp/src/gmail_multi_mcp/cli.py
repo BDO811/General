@@ -314,6 +314,91 @@ def cmd_schedule(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_drafts(rows: list[dict]) -> None:
+    for i, d in enumerate(rows, 1):
+        to = d.get("to") or "(no recipient)"
+        subject = d.get("subject") or "(no subject)"
+        print(f"{i:>3}. {d.get('date','')[:31]:<31} {to[:44]:<44} {subject}")
+
+
+def cmd_drafts(args: argparse.Namespace) -> int:
+    """List unsent drafts in one account."""
+    from . import gmail_client as gm
+
+    registry = Registry()
+    try:
+        account = registry.resolve(args.alias)
+    except LookupError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    try:
+        rows = gm.list_drafts(account, max_results=args.limit, query=args.query)
+    except (AuthError, gm.GmailError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if not rows:
+        print(f"No drafts in '{account.alias}' ({account.email}).")
+        return 0
+    print(f"{len(rows)} draft(s) in '{account.alias}' ({account.email}):\n")
+    _print_drafts(rows)
+    return 0
+
+
+def cmd_send_drafts(args: argparse.Namespace) -> int:
+    """Send every draft in one account, after showing what will go out.
+
+    Bulk sending is irreversible and drafts accumulate for years, so the list is
+    always printed first and the count has to be typed back unless --yes is given.
+    """
+    from . import gmail_client as gm
+
+    registry = Registry()
+    try:
+        account = registry.resolve(args.alias)
+    except LookupError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    try:
+        rows = gm.list_drafts(account, max_results=args.limit, query=args.query)
+    except (AuthError, gm.GmailError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if not rows:
+        print(f"No drafts in '{account.alias}' ({account.email}). Nothing to send.")
+        return 0
+
+    print(f"About to send {len(rows)} draft(s) FROM {account.email}:\n")
+    _print_drafts(rows)
+    print()
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("Refusing to send without confirmation. Re-run with --yes.",
+                  file=sys.stderr)
+            return 1
+        answer = input(f"This cannot be undone. Type {len(rows)} to send, anything else to abort: ")
+        if answer.strip() != str(len(rows)):
+            print("Aborted. Nothing was sent.")
+            return 1
+
+    sent, failed = 0, 0
+    for row in rows:
+        subject = row.get("subject") or "(no subject)"
+        try:
+            gm.send_draft(account, row["draft_id"])
+            sent += 1
+            print(f"sent   {row.get('to','')[:44]:<44} {subject}")
+        except (AuthError, gm.GmailError) as exc:
+            failed += 1
+            print(f"FAIL   {row.get('to','')[:44]:<44} {subject}: {exc}", file=sys.stderr)
+
+    print(f"\n{sent} sent, {failed} failed.")
+    return 1 if failed else 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     registry = Registry()
     rows = token_status(registry)
@@ -450,6 +535,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_sched.add_argument("--off", action="store_true", help="remove the scheduled job")
     p_sched.add_argument("--status", action="store_true", help="show whether it is installed")
     p_sched.set_defaults(func=cmd_schedule)
+
+    p_dr = sub.add_parser("drafts", help="list unsent drafts in an account")
+    p_dr.add_argument("alias", nargs="?", help="account alias or email; omit for the default")
+    p_dr.add_argument("--limit", type=int, default=100, help="max drafts to list")
+    p_dr.add_argument("--query", help="optional Gmail search to narrow the drafts")
+    p_dr.set_defaults(func=cmd_drafts)
+
+    p_sd = sub.add_parser("send-drafts",
+                          help="send every draft in an account, after confirmation")
+    p_sd.add_argument("alias", nargs="?", help="account alias or email; omit for the default")
+    p_sd.add_argument("--limit", type=int, default=100, help="max drafts to send")
+    p_sd.add_argument("--query", help="only send drafts matching this Gmail search")
+    p_sd.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
+    p_sd.set_defaults(func=cmd_send_drafts)
 
     p_test = sub.add_parser("test", help="call Gmail once per account to verify tokens")
     p_test.add_argument("alias", nargs="?")

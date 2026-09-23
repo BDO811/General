@@ -98,6 +98,20 @@ A reauth that lands on a different Google account than the alias was registered
 with is refused and the token discarded, so a mis-click in the browser cannot
 silently repoint `helix` at another mailbox.
 
+## Sending drafts
+
+```bash
+gmail-multi-mcp drafts helix                  # see what is sitting there
+gmail-multi-mcp send-drafts helix             # send them all, after confirming
+gmail-multi-mcp send-drafts helix --query "newer_than:7d"
+```
+
+`send-drafts` always prints the full list with sender, recipients and subjects
+first, then requires the count typed back before anything goes out. `--yes`
+skips the prompt for scripted use. Without a tty and without `--yes` it refuses
+rather than sending. Mailboxes accumulate abandoned drafts addressed to real
+people, and sending is irreversible.
+
 ## Scheduled health check
 
 ```bash
@@ -175,6 +189,8 @@ gmail-multi-mcp list [--json]
 gmail-multi-mcp default <alias>
 gmail-multi-mcp remove <alias>
 gmail-multi-mcp reauth [alias] [--all] [--no-browser]
+gmail-multi-mcp drafts [alias] [--query ...]
+gmail-multi-mcp send-drafts [alias] [--query ...] [--yes]
 gmail-multi-mcp refresh [--notify]
 gmail-multi-mcp schedule [--at HH:MM] [--off] [--status]
 gmail-multi-mcp test [alias]
