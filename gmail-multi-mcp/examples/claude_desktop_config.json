@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gmail-multi": {
+      "command": "/absolute/path/to/gmail-multi-mcp/.venv/bin/gmail-multi-mcp",
+      "args": ["serve"],
+      "env": {
+        "GMAIL_MULTI_MCP_HOME": "/absolute/path/to/your/home/.gmail-multi-mcp",
+        "GMAIL_MULTI_MCP_DEFAULT": "work"
+      }
+    }
+  }
+}

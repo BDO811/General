@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "gmail-multi": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/gmail-multi-mcp",
+        "run",
+        "gmail-multi-mcp",
+        "serve"
+      ],
+      "env": {
+        "GMAIL_MULTI_MCP_DEFAULT": "work"
+      }
+    }
+  }
+}

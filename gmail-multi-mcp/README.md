@@ -1,0 +1,276 @@
+# gmail-multi-mcp
+
+A local MCP server that holds a separate OAuth token for every Gmail account you
+own and routes each tool call to the account you name. One server process, one
+set of tools, many mailboxes.
+
+This exists because the stock Gmail connector binds to a single authorized
+identity. If you run personal mail, a company mailbox, and a second company
+mailbox, you otherwise end up either re-authorizing constantly or running three
+near-identical servers. Here the account is just an argument.
+
+## How routing works
+
+Every tool takes an optional `account` argument. It accepts either the short
+alias you chose (`work`, `personal`, `amplifier`) or the full email address. Omit
+it and the registry default is used. `search_all_accounts` ignores the argument
+and fans out across every account in parallel, which is the reason to run one
+server rather than several.
+
+Tokens are stored one file per account under `~/.gmail-multi-mcp/tokens/`, mode
+0600, and refreshed lazily on use. Nothing leaves the machine except calls to
+Google.
+
+## Setup
+
+### 1. Create an OAuth client
+
+In Google Cloud Console: create a project, enable the Gmail API, configure the
+OAuth consent screen as **External** in testing mode, and add every Gmail address
+you plan to connect as a test user. Then create credentials of type **OAuth
+client ID**, application type **Desktop app**, and download the JSON.
+
+Save it as `~/.gmail-multi-mcp/client_secret.json`, or point
+`GMAIL_MULTI_MCP_CLIENT_SECRET` at wherever you keep it.
+
+One OAuth client serves all of your accounts. The client identifies the app; the
+token identifies the mailbox.
+
+### 2. Install
+
+```bash
+cd gmail-multi-mcp
+python3 -m venv .venv
+.venv/bin/pip install -e .
+```
+
+Or with uv:
+
+```bash
+uv sync
+```
+
+### 3. Authorize each account
+
+```bash
+gmail-multi-mcp add work --label "Company mail" --default
+gmail-multi-mcp add personal
+gmail-multi-mcp add board --readonly
+```
+
+Each `add` opens a browser. Pick the matching Google account in that window. The
+alias is whatever you want the model to say; the email address is read back from
+Google after consent so an alias can never silently point at the wrong mailbox.
+
+Verify:
+
+```bash
+gmail-multi-mcp list
+gmail-multi-mcp test
+```
+
+The authorization URL is always printed, whether or not a browser opened, so you
+can paste it in yourself if the window went to the wrong Google profile. Pass
+`--no-browser` to skip the automatic open entirely.
+
+Run `add` on the machine where the browser runs. Google redirects to
+`http://localhost:<port>` and that callback has to reach the process that is
+waiting. Over SSH, forward the port first with `ssh -L 8765:localhost:8765` and
+pass `--port 8765`.
+
+## Token lifetime
+
+While the OAuth consent screen sits in **Testing**, Google expires every refresh
+token after seven days. Publishing the consent screen (Google Auth Platform,
+Audience, Publish app) stops that. Gmail scopes are restricted, so Google will
+say the app needs verification; publishing without it still works, capped at 100
+users, with the unverified-app warning on future authorizations.
+
+If you stay in testing mode, one command repairs whatever has lapsed:
+
+```bash
+gmail-multi-mcp reauth            # only the accounts whose tokens are broken
+gmail-multi-mcp reauth helix      # just one
+gmail-multi-mcp reauth --all      # every account, healthy or not
+```
+
+A reauth that lands on a different Google account than the alias was registered
+with is refused and the token discarded, so a mis-click in the browser cannot
+silently repoint `helix` at another mailbox.
+
+## Remote access from other Claude surfaces
+
+stdio only reaches a client running on the same machine. A Claude Code cloud
+session, or the web app, cannot spawn a local process or read the token files, so
+for those the server has to listen over HTTP.
+
+```bash
+export GMAIL_MULTI_MCP_TOKEN=$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')
+echo "$GMAIL_MULTI_MCP_TOKEN"            # save this, you need it in the connector
+
+gmail-multi-mcp serve [--http] [--host H] [--port N] [--allow-host H] --http --allow-host '*'
+```
+
+Then expose it, in a second terminal:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8765
+```
+
+That prints an `https://<something>.trycloudflare.com` URL. Register
+`https://<something>.trycloudflare.com/mcp` as a custom MCP connector in Claude
+settings, with an `Authorization` header of `Bearer <your token>`.
+
+The token is read from the environment rather than a flag, so it stays out of
+shell history and the process list. The server refuses to listen without one, and
+refuses tokens under 24 characters. Every HTTP request is checked in constant
+time before it reaches the tool layer.
+
+`--allow-host` sets which `Host` headers are accepted, since the SDK enables DNS
+rebinding protection by default and a tunnel presents its own hostname. Pass the
+tunnel hostname if it is stable, or `'*'` to skip the check when it rotates.
+
+**Understand what this exposes.** A URL on the public internet, guarded by one
+bearer token, that can read and send mail as you from every registered account.
+Anyone holding that token has your mailboxes. Worth doing only if you actually
+need mail access from a remote Claude surface, and worth registering read-only
+accounts (`add --readonly`) if you only need search. Stop the tunnel when you are
+not using it; a quick tunnel dies with the process and its URL is not reusable.
+
+## Sending drafts
+
+```bash
+gmail-multi-mcp drafts helix                  # see what is sitting there
+gmail-multi-mcp send-drafts helix             # send them all, after confirming
+gmail-multi-mcp send-drafts helix --query "newer_than:7d"
+```
+
+`send-drafts` always prints the full list with sender, recipients and subjects
+first, then requires the count typed back before anything goes out. `--yes`
+skips the prompt for scripted use. Without a tty and without `--yes` it refuses
+rather than sending. Mailboxes accumulate abandoned drafts addressed to real
+people, and sending is irreversible.
+
+## Scheduled health check
+
+```bash
+gmail-multi-mcp schedule --at 12:00     # install a daily launchd job (macOS)
+gmail-multi-mcp schedule --status       # is it installed and loaded
+gmail-multi-mcp schedule --off          # remove it
+```
+
+The job runs `gmail-multi-mcp refresh`, which loads every account, refreshes any
+aged-out access token, and makes one Gmail call to prove the refresh token still
+works. Output lands in `~/.gmail-multi-mcp/logs/refresh.log`, and a failure
+raises a macOS notification naming the accounts to repair.
+
+It does **not** defeat the seven-day testing-mode expiry, which is fixed when the
+token is issued and can only be cleared by consenting again in a browser. What it
+does buy: tokens stay warm, the separate six-month inactivity expiry never
+triggers, and a dead mailbox surfaces on a schedule rather than in the middle of
+something.
+
+On Linux, `schedule` prints the equivalent cron line instead of installing
+anything.
+
+## Troubleshooting
+
+**`OAuth client file not found at ~/.gmail-multi-mcp/client_secret.json`**
+Step 1 is not done. There is no OAuth client to authorize against, so nothing
+opens. Create the Desktop app client in Google Cloud Console and save the
+downloaded JSON at that exact path.
+
+**Nothing opens and nothing prints**
+You are on a build before the URL fix. Pull the latest and retry.
+
+**`Error 403: access_denied`**
+The Gmail address you picked is not on the consent screen's test user list. Add
+it under OAuth consent screen, Test users, then retry.
+
+**`Timed out waiting for Google to redirect back`**
+The browser is on a different machine from the command. See the SSH note above.
+
+**Browser opened on the wrong Google account**
+Sign out of the extra accounts, or paste the printed URL into a private window.
+The address is read back from Google after consent, so a mismatch is reported
+rather than silently stored.
+
+### 4. Register the server with your client
+
+See `examples/claude_desktop_config.json` and `examples/claude_code_mcp.json`.
+For Claude Code:
+
+```bash
+claude mcp add gmail-multi -- /absolute/path/to/.venv/bin/gmail-multi-mcp serve
+```
+
+## Tools
+
+| Tool | What it does |
+| --- | --- |
+| `list_accounts` | Every registered account, its address, scope mode, and token health |
+| `account_profile` | Confirms which mailbox an alias resolves to |
+| `search_messages` | Gmail search syntax against one account |
+| `search_all_accounts` | The same search across every account, in parallel |
+| `get_message` | One message with plain text body and attachment list |
+| `get_thread` | A whole thread in order |
+| `list_labels` | Label ids and names, needed before `modify_labels` |
+| `create_draft` | Draft in a chosen account |
+| `send_message` | Send immediately from a chosen account |
+| `send_draft` | Send an existing draft |
+| `modify_labels` | Add or remove labels, including `UNREAD` and `TRASH` |
+
+## CLI
+
+```
+gmail-multi-mcp add <alias> [--label ...] [--readonly] [--default] [--force]
+gmail-multi-mcp list [--json]
+gmail-multi-mcp default <alias>
+gmail-multi-mcp remove <alias>
+gmail-multi-mcp reauth [alias] [--all] [--no-browser]
+gmail-multi-mcp drafts [alias] [--query ...]
+gmail-multi-mcp send-drafts [alias] [--query ...] [--yes]
+gmail-multi-mcp refresh [--notify]
+gmail-multi-mcp schedule [--at HH:MM] [--off] [--status]
+gmail-multi-mcp test [alias]
+gmail-multi-mcp paths
+gmail-multi-mcp serve
+```
+
+## Scopes
+
+Default is `gmail.modify` plus `gmail.compose`, which covers reading, labeling,
+drafting, and sending. Pass `--readonly` on any account that should never be
+written to. The server checks the stored scopes before a write and refuses with a
+clear message rather than letting Google return an opaque 403.
+
+## Design notes worth knowing
+
+Token refresh is serialized behind a lock so two concurrent tool calls cannot
+corrupt a token file. Service objects are cached per alias and dropped on a 401
+or 403 so a single stale client does not wedge an account for the life of the
+process. A failure on one account during fan-out lands in `errors` rather than
+failing the whole call.
+
+The server never opens a browser. Interactive consent only happens through the
+CLI, so an MCP client can never trigger a login prompt mid-conversation.
+
+## Security
+
+`client_secret.json`, `accounts.json`, and `tokens/` are all gitignored. The
+refresh tokens under `tokens/` grant full access to those mailboxes. Treat that
+directory like a password vault, and run `gmail-multi-mcp remove <alias>` plus a
+revoke at https://myaccount.google.com/permissions when you retire an account.
+
+## Tests
+
+`tests/smoke_test.py` runs entirely offline against fake tokens. It covers the
+tool surface, alias and email routing, the default account and its environment
+override, the read only scope guard, token file permissions, MIME assembly, and
+body and attachment parsing.
+
+```bash
+.venv/bin/python tests/smoke_test.py
+```
+
+Built against MCP SDK 2.x, with a fallback import so it still loads under 1.x.
