@@ -473,6 +473,12 @@ def cmd_paths(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
+    if args.http:
+        from .server import serve_http
+
+        serve_http(host=args.host, port=args.port, allowed_hosts=args.allow_host)
+        return 0
+
     from .server import main as serve
 
     serve()
@@ -557,7 +563,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_paths = sub.add_parser("paths", help="print where config and tokens live")
     p_paths.set_defaults(func=cmd_paths)
 
-    p_serve = sub.add_parser("serve", help="run the MCP server on stdio")
+    p_serve = sub.add_parser("serve", help="run the MCP server (stdio by default)")
+    p_serve.add_argument("--http", action="store_true",
+                         help="serve over streamable HTTP instead of stdio, for remote clients")
+    p_serve.add_argument("--host", default="127.0.0.1",
+                         help="bind address for --http (default 127.0.0.1, use a tunnel to expose)")
+    p_serve.add_argument("--port", type=int, default=8765, help="port for --http")
+    p_serve.add_argument("--allow-host", action="append",
+                         help="hostname a remote client will send in the Host header; "
+                              "repeatable, or '*' to disable the check")
     p_serve.set_defaults(func=cmd_serve)
 
     return parser

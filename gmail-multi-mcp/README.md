@@ -98,6 +98,45 @@ A reauth that lands on a different Google account than the alias was registered
 with is refused and the token discarded, so a mis-click in the browser cannot
 silently repoint `helix` at another mailbox.
 
+## Remote access from other Claude surfaces
+
+stdio only reaches a client running on the same machine. A Claude Code cloud
+session, or the web app, cannot spawn a local process or read the token files, so
+for those the server has to listen over HTTP.
+
+```bash
+export GMAIL_MULTI_MCP_TOKEN=$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')
+echo "$GMAIL_MULTI_MCP_TOKEN"            # save this, you need it in the connector
+
+gmail-multi-mcp serve [--http] [--host H] [--port N] [--allow-host H] --http --allow-host '*'
+```
+
+Then expose it, in a second terminal:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8765
+```
+
+That prints an `https://<something>.trycloudflare.com` URL. Register
+`https://<something>.trycloudflare.com/mcp` as a custom MCP connector in Claude
+settings, with an `Authorization` header of `Bearer <your token>`.
+
+The token is read from the environment rather than a flag, so it stays out of
+shell history and the process list. The server refuses to listen without one, and
+refuses tokens under 24 characters. Every HTTP request is checked in constant
+time before it reaches the tool layer.
+
+`--allow-host` sets which `Host` headers are accepted, since the SDK enables DNS
+rebinding protection by default and a tunnel presents its own hostname. Pass the
+tunnel hostname if it is stable, or `'*'` to skip the check when it rotates.
+
+**Understand what this exposes.** A URL on the public internet, guarded by one
+bearer token, that can read and send mail as you from every registered account.
+Anyone holding that token has your mailboxes. Worth doing only if you actually
+need mail access from a remote Claude surface, and worth registering read-only
+accounts (`add --readonly`) if you only need search. Stop the tunnel when you are
+not using it; a quick tunnel dies with the process and its URL is not reusable.
+
 ## Sending drafts
 
 ```bash

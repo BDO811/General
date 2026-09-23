@@ -9,6 +9,9 @@ whole reason for running one server instead of several.
 from __future__ import annotations
 
 import concurrent.futures
+import hmac
+import os
+import sys
 from typing import Annotated, Any
 
 from mcp.types import ToolAnnotations
@@ -257,6 +260,86 @@ def modify_labels(
 ) -> dict:
     """Add or remove labels on a message. Remove 'UNREAD' to mark read, add 'TRASH' to trash."""
     return _run(account, gm.modify_labels, message_id, add_label_ids, remove_label_ids)
+
+
+class _BearerAuth:
+    """ASGI gate in front of the MCP app.
+
+    This server can read and send mail as its operator, so an unauthenticated
+    request must never reach the tool layer. Compared in constant time so the
+    token cannot be recovered by timing the 401.
+    """
+
+    def __init__(self, app, token: str) -> None:
+        self.app = app
+        self._expected = f"Bearer {token}"
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = {k.lower(): v for k, v in (scope.get("headers") or [])}
+        presented = headers.get(b"authorization", b"").decode("latin-1")
+        if not hmac.compare_digest(presented, self._expected):
+            await send({
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [(b"content-type", b"application/json"),
+                            (b"www-authenticate", b'Bearer realm="gmail-multi-mcp"')],
+            })
+            await send({"type": "http.response.body",
+                        "body": b'{"error":"unauthorized"}'})
+            return
+        await self.app(scope, receive, send)
+
+
+def serve_http(host: str = "127.0.0.1", port: int = 8765,
+               allowed_hosts: list[str] | None = None) -> None:
+    """Serve over streamable HTTP so remote Claude surfaces can reach this.
+
+    The token comes from the environment rather than a flag, to keep it out of
+    shell history and the process list.
+    """
+    import uvicorn
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    token = os.environ.get("GMAIL_MULTI_MCP_TOKEN", "").strip()
+    if not token:
+        raise SystemExit(
+            "GMAIL_MULTI_MCP_TOKEN is not set. This server can send mail as you, "
+            "so it refuses to listen on a socket without one. Generate one with:\n"
+            "  export GMAIL_MULTI_MCP_TOKEN=$(python3 -c "
+            "'import secrets;print(secrets.token_urlsafe(32))')"
+        )
+    if len(token) < 24:
+        raise SystemExit(
+            f"GMAIL_MULTI_MCP_TOKEN is only {len(token)} characters. Use at least 24; "
+            "this is the sole guard on a mailbox that can send mail."
+        )
+
+    security = None
+    if allowed_hosts:
+        if "*" in allowed_hosts:
+            # Explicit opt out, for tunnels whose hostname rotates per run.
+            security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=False,
+                allowed_hosts=[], allowed_origins=[],
+            )
+        else:
+            expanded: list[str] = []
+            for entry in allowed_hosts:
+                expanded.append(entry)
+                if ":" not in entry:
+                    expanded.append(f"{entry}:{port}")
+            security = TransportSecuritySettings(
+                allowed_hosts=expanded,
+                allowed_origins=[f"https://{h}" for h in expanded],
+            )
+
+    app = mcp.streamable_http_app(transport_security=security, host=host)
+    print(f"gmail-multi-mcp listening on http://{host}:{port}/mcp (bearer auth required)",
+          file=sys.stderr)
+    uvicorn.run(_BearerAuth(app, token), host=host, port=port, log_level="warning")
 
 
 def main() -> None:
