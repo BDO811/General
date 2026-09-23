@@ -84,12 +84,12 @@ way the deck sets it. Do not change it per document.
 Every document gets a backdrop image chosen for its subject, laid in at 10%
 behind the text block. This is a house signature, not a decoration to skip.
 
-Source it from **Pixabay** (free licence, no attribution required):
-
 ```bash
-export PIXABAY_API_KEY=...        # free key at pixabay.com/api/docs
-python3 brand/fetch_imagery.py <slug> "<query>"
+export PIXABAY_API_KEY=...        # free key from pixabay.com/api/docs
+python3 brand/fetch_imagery.py --all          # or: <slug> ["query"]
 ```
+
+The key lives in the environment. Never write it into a file in the repo.
 
 Then in the document:
 
@@ -97,19 +97,31 @@ Then in the document:
 d.set_backdrop("brand/assets/imagery/<slug>.jpg", alpha=0.10)
 ```
 
-`set_backdrop` composites the image against the page colour in advance, so the
-PDF carries no transparency group and the backdrop prints exactly as it screens.
-It feathers to the page colour on all four edges.
+`set_backdrop` desaturates the image, composites it against the page colour in
+advance and feathers it to nothing on all four edges. So the PDF carries no
+transparency group, the backdrop prints exactly as it screens, it sits in no
+visible box, and it adds form and value without throwing a colour cast over the
+bone. The cover picks it up too, which is where it reads strongest.
+
+Sources, in order: Pixabay when the key is set, then Openverse, which needs no
+key and is restricted to CC0 and public domain. Both carry no attribution
+obligation. Each download writes a sidecar `.json` recording where it came from.
+
+**Search by tag, not by hope.** Every topic in `fetch_imagery.py` carries a
+query and a list of terms, at least one of which must appear in the hit's own
+tags. Without that guard "sound wave" returns a photograph of the sea and
+"stone columns" returns a war memorial, both of which happened before the guard
+existed. When adding a topic, add its tag terms.
 
 Choosing the image
-- Abstract and textural wins. At 10% behind body copy, anything with faces,
-  hard edges, small detail or text in it turns to grey noise.
-- It must read as subject matter, not stock. Voice work gets waveforms and
-  spectra. Regulatory work gets architecture and columns. Growth work gets
-  abstract line and field.
-- Landscape orientation, 1920px wide minimum.
+- Abstract and textural wins. At 10% behind body copy, small detail turns to
+  grey noise, which is fine, but faces and legible text are not.
+- It must read as subject matter. Voice work gets waveforms and spectra,
+  regulatory work gets courthouses and columns, growth work gets charts and
+  line graphs, a diligence response gets paper.
+- Landscape, 1400px wide minimum.
 - Check legibility on the finished page before shipping. Body copy over the
-  backdrop must be as readable as body copy over bare paper. If it is not,
+  backdrop must read as easily as body copy over bare paper. If it does not,
   the image is too busy, not the opacity too high.
 
 ## Never

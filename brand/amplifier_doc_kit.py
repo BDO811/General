@@ -150,13 +150,16 @@ class AmplifierDoc(object):
         return out
 
     # ------------------------------------------------------------ page shell
-    def set_backdrop(self, image_path, alpha=0.10, pages=None, band=None):
+    def set_backdrop(self, image_path, alpha=0.10, pages=None, band=None,
+                     desaturate=True):
         """Topical imagery sitting behind the page at 10%.
 
         The image is composited against the page colour in advance rather than
         drawn with a transparency group, so it prints exactly as it screens and
         the PDF carries no alpha. pages limits it to specific page numbers;
         band is (y_bottom, y_top) in points, defaulting to the full text block.
+        Desaturated by default so the imagery contributes form and value, not a
+        colour cast over the bone.
         """
         from PIL import Image
         if not os.path.exists(image_path):
@@ -173,6 +176,8 @@ class AmplifierDoc(object):
         left = (im.width - px_w) // 2
         top = (im.height - px_h) // 2
         im = im.crop((left, top, left + px_w, top + px_h))
+        if desaturate:
+            im = im.convert("L").convert("RGB")
 
         # feather to the page colour on every edge, so the imagery dissolves
         # into the sheet instead of sitting in a visible box
