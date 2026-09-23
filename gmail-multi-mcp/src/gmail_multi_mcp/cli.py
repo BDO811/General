@@ -38,6 +38,10 @@ def cmd_add(args: argparse.Namespace) -> int:
     except AuthError as exc:
         print(f"Authorization failed: {exc}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        # Ctrl+C while waiting on the redirect is a normal way out, not a crash.
+        print(f"\nCancelled. '{alias}' was not authorized.", file=sys.stderr)
+        return 130
 
     existing = {a.email.lower(): a.alias for a in registry.accounts().values() if a.email}
     if email.lower() in existing and existing[email.lower()] != alias:
