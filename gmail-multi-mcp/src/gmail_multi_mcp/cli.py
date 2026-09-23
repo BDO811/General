@@ -61,6 +61,81 @@ def cmd_add(args: argparse.Namespace) -> int:
     return 0
 
 
+def _token_ok(account: Account) -> bool:
+    if not token_path(account.alias).exists():
+        return False
+    try:
+        load_credentials(account)
+        return True
+    except AuthError:
+        return False
+
+
+def cmd_reauth(args: argparse.Namespace) -> int:
+    """Re-run consent for accounts whose tokens have gone stale.
+
+    In testing mode Google expires refresh tokens after seven days, which
+    otherwise means hunting down each broken account by hand.
+    """
+    registry = Registry()
+    accounts = registry.accounts()
+    if not accounts:
+        print("No accounts registered.", file=sys.stderr)
+        return 1
+
+    if args.alias:
+        try:
+            targets = [registry.resolve(args.alias)]
+        except LookupError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+    else:
+        targets = [a for _, a in sorted(accounts.items())]
+        if not args.all:
+            targets = [a for a in targets if not _token_ok(a)]
+            if not targets:
+                print("All tokens are healthy. Nothing to do.")
+                return 0
+
+    print(f"Re-authorizing {len(targets)} account(s): {', '.join(a.alias for a in targets)}")
+    print("Each one opens a browser. Pick the matching account in every window.\n")
+
+    use_browser = False if args.no_browser else None
+    failures = 0
+    for account in targets:
+        try:
+            creds = run_consent_flow(account.alias, account.scopes, port=args.port,
+                                     use_browser=use_browser, timeout_seconds=args.timeout)
+            email = whoami(creds)
+        except AuthError as exc:
+            failures += 1
+            print(f"FAIL  {account.alias}: {exc}\n", file=sys.stderr)
+            continue
+        except KeyboardInterrupt:
+            print(f"\nCancelled at '{account.alias}'. Remaining accounts were skipped.",
+                  file=sys.stderr)
+            return 130
+
+        # A reauth must land on the same mailbox. Picking the wrong account in the
+        # browser would otherwise silently repoint the alias.
+        if account.email and email.lower() != account.email.lower():
+            failures += 1
+            token_path(account.alias).unlink(missing_ok=True)
+            print(
+                f"FAIL  {account.alias}: authorized {email} but this alias belongs to "
+                f"{account.email}. Token discarded, alias unchanged. Retry and pick "
+                f"{account.email} in the browser.\n",
+                file=sys.stderr,
+            )
+            continue
+
+        registry.upsert(Account(alias=account.alias, email=email, scopes=account.scopes,
+                                label=account.label, added_at=now_iso()))
+        print(f"ok    {account.alias:<12} {email}\n")
+
+    return 1 if failures else 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     registry = Registry()
     rows = token_status(registry)
@@ -172,6 +247,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_def = sub.add_parser("default", help="set the default account")
     p_def.add_argument("alias")
     p_def.set_defaults(func=cmd_default)
+
+    p_re = sub.add_parser("reauth",
+                          help="re-run consent for accounts with expired or broken tokens")
+    p_re.add_argument("alias", nargs="?", help="one account; omit to sweep all of them")
+    p_re.add_argument("--all", action="store_true",
+                      help="re-authorize every account, not just the broken ones")
+    p_re.add_argument("--no-browser", action="store_true",
+                      help="do not open a browser, just print each URL")
+    p_re.add_argument("--port", type=int, default=0, help="loopback port for the redirect")
+    p_re.add_argument("--timeout", type=int, default=300,
+                      help="seconds to wait for each redirect (default 300)")
+    p_re.set_defaults(func=cmd_reauth)
 
     p_test = sub.add_parser("test", help="call Gmail once per account to verify tokens")
     p_test.add_argument("alias", nargs="?")

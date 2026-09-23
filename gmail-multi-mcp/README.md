@@ -78,6 +78,26 @@ Run `add` on the machine where the browser runs. Google redirects to
 waiting. Over SSH, forward the port first with `ssh -L 8765:localhost:8765` and
 pass `--port 8765`.
 
+## Token lifetime
+
+While the OAuth consent screen sits in **Testing**, Google expires every refresh
+token after seven days. Publishing the consent screen (Google Auth Platform,
+Audience, Publish app) stops that. Gmail scopes are restricted, so Google will
+say the app needs verification; publishing without it still works, capped at 100
+users, with the unverified-app warning on future authorizations.
+
+If you stay in testing mode, one command repairs whatever has lapsed:
+
+```bash
+gmail-multi-mcp reauth            # only the accounts whose tokens are broken
+gmail-multi-mcp reauth helix      # just one
+gmail-multi-mcp reauth --all      # every account, healthy or not
+```
+
+A reauth that lands on a different Google account than the alias was registered
+with is refused and the token discarded, so a mis-click in the browser cannot
+silently repoint `helix` at another mailbox.
+
 ## Troubleshooting
 
 **`OAuth client file not found at ~/.gmail-multi-mcp/client_secret.json`**
@@ -132,6 +152,7 @@ gmail-multi-mcp add <alias> [--label ...] [--readonly] [--default] [--force]
 gmail-multi-mcp list [--json]
 gmail-multi-mcp default <alias>
 gmail-multi-mcp remove <alias>
+gmail-multi-mcp reauth [alias] [--all] [--no-browser]
 gmail-multi-mcp test [alias]
 gmail-multi-mcp paths
 gmail-multi-mcp serve
