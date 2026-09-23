@@ -38,7 +38,11 @@ Type
 - Microtype, data, labels, code: **JetBrains Mono**
 
 Signature moves
-- A wash block sitting **behind** the display headline, never a box around it.
+- Display type sits on the **open page**. Never put a wash block, a highlight
+  or any panel behind a headline. The hero line is set on bare paper.
+- Every document carries **topical imagery at 10% behind the text block**,
+  feathered to nothing at every edge so it dissolves into the sheet rather
+  than sitting in a visible box. See **Imagery** below.
 - Mono eyebrow in forest green, letter spaced, above the headline.
 - Four up stat row, each cell closed by a forest green rule on top.
 - Section labels in mono forest green between hairlines: `01  ·  THE SLOPE`.
@@ -53,6 +57,46 @@ Screens only. `#050505` ground, `#0a0a0a` surface, `#18181b` raised, `#26262c`
 keylines, `#fafafa` / `#b4b4bc` / `#8b8b93` ink, `#22d3ee` cyan accent,
 `#10b981` emerald secondary. Cormorant Garamond SemiBold for display, Inter for
 body, JetBrains Mono for data. Subtle white grid overlay at 3.5%.
+
+
+## Imagery
+
+Every document gets a backdrop image chosen for its subject, laid in at 10%
+behind the text block. This is a house signature, not a decoration to skip.
+
+Source it from **Pixabay** (free licence, no attribution required):
+
+```bash
+export PIXABAY_API_KEY=...        # free key at pixabay.com/api/docs
+python3 brand/fetch_imagery.py <slug> "<query>"
+```
+
+Then in the document:
+
+```python
+d.set_backdrop("brand/assets/imagery/<slug>.jpg", alpha=0.10)
+```
+
+`set_backdrop` composites the image against the page colour in advance, so the
+PDF carries no transparency group and the backdrop prints exactly as it screens.
+It feathers to the page colour on all four edges.
+
+Choosing the image
+- Abstract and textural wins. At 10% behind body copy, anything with faces,
+  hard edges, small detail or text in it turns to grey noise.
+- It must read as subject matter, not stock. Voice work gets waveforms and
+  spectra. Regulatory work gets architecture and columns. Growth work gets
+  abstract line and field.
+- Landscape orientation, 1920px wide minimum.
+- Check legibility on the finished page before shipping. Body copy over the
+  backdrop must be as readable as body copy over bare paper. If it is not,
+  the image is too busy, not the opacity too high.
+
+## Never
+
+- A highlight or wash block behind display type.
+- Em dashes, double dashes or ellipses, anywhere, in any document.
+- A dash as a list marker. The bullet is a small square in the accent.
 
 ## How to build
 
@@ -110,3 +154,13 @@ python3 token_run_rate_charts.py AMPLIFIER-DARK-PALETTE && python3 token_run_rat
 
 No em dashes, no double dashes, no ellipses, anywhere. Restructure the sentence
 instead, and do not substitute a comma for the dash you removed.
+
+## Vertical rhythm
+
+Spacing is checked line by line, not eyeballed once. `def_row` fixes the
+rhythm so every row in every document measures the same: the keyline sits
+18pt above the title baseline and 14pt below the previous row's last line,
+so it reads as a separator between rows rather than a hat on the next title.
+Use `d.rows_start(y, "para" | "label" | "head")` to place the first row of a
+run, rather than guessing an offset. After building, render every page and
+look at it. Overlaps and cramped blocks are defects, not taste.

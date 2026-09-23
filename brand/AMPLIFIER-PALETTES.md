@@ -30,7 +30,9 @@ Type
 - Microtype, data, labels, code: JetBrains Mono
 
 Signature moves
-- Wash block sitting behind the display headline, not a box around it.
+- Display type set on the open page. Never a wash block behind a headline.
+- Topical imagery at 10% behind the text block, feathered to nothing at the
+  edges. Sourced from Pixabay through `fetch_imagery.py`.
 - Mono eyebrow in forest green, letter spaced, above the headline.
 - Four up stat row closed by a forest green rule.
 - Section labels in mono forest green, separated by hairlines.

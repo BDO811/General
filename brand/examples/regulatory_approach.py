@@ -14,6 +14,7 @@ from amplifier_palettes import DEFAULT
 PAL = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT).upper()
 TAG = "dark" if "DARK" in PAL else "design"
 OUT = os.path.join(D, "Amplifier_Regulatory_Approach_%s.pdf" % TAG)
+BACKDROP = os.path.join(os.path.dirname(D), "assets", "imagery", "regulatory_approach.jpg")
 TOTAL = 6
 
 
@@ -69,7 +70,7 @@ def page_two(d):
     ])
 
     y = d.label(y - 14, "The four criteria.  All four must be met")
-    y -= 6
+    y = d.rows_start(y, "label")
     for tag, title, body in [
         ("Criterion 1", "Signal exclusion",
          "Not intended to acquire, process or analyze a medical image, a signal from an IVD, or "
@@ -106,7 +107,7 @@ def page_three(d):
     d.new_page(3, TOTAL)
     y = d.section_head(680, "02", "Where Amplifier Sits")
     y = d.h2(y - 4, "Criterion By Criterion")
-    y -= 12
+    y = d.rows_start(y, "head")
 
     # the palette carries no red; a failed criterion is set in full ink
     fail = d.NEG if d.dark else d.TX
@@ -170,7 +171,7 @@ def page_four(d):
         (". That distinction matters in writing, to investors, to partners and to counsel.", "r"),
     ], size=9.0, leading=12.8)
 
-    y -= 8
+    y = d.rows_start(y, "para")
     for tag, title, right, body in [
         ("Lane A", "General wellness", "520(o)(1)(B)",
          "Software for maintaining or encouraging a healthy lifestyle and unrelated to the "
@@ -246,7 +247,7 @@ def page_five(d):
     y -= h
 
     y = d.label(y - 20, "The argument")
-    y -= 4
+    y = d.rows_start(y, "label")
     for num, title, body in [
         ("01", "You do not clear a foundation model",
          "You clear one intended use on one indication. A submission is only as strong as the "
@@ -367,6 +368,8 @@ def main():
     d = AmplifierDoc(OUT, palette=PAL,
                      title="Amplifier Health, Regulatory Approach, September 2026",
                      subject="FDA pathway and the two phase strategy")
+    if os.path.exists(BACKDROP):
+        d.set_backdrop(BACKDROP, alpha=0.10)
     page_one(d); page_two(d); page_three(d); page_four(d); page_five(d); page_six(d)
     d.save()
     print("wrote", OUT, "in", d.P["name"])

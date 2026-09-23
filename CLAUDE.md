@@ -17,7 +17,11 @@ handed, even when the task is to restyle that document.
 is the screen variant. Use it only when asked for by name, or for product UI and
 dashboards.
 
-Definitions, the document kit and a worked example live in `brand/`. The full
+Two rules that are not optional: display type is set on the open page, never
+on a wash block, and every document carries topical imagery at 10% behind the
+text block, sourced from Pixabay via `brand/fetch_imagery.py`.
+
+Definitions, the document kit and worked examples live in `brand/`. The full
 system is in `.claude/skills/amplifier-design/SKILL.md`, which loads
 automatically for design work.
 

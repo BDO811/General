@@ -96,6 +96,9 @@ class AmplifierDoc(object):
         lp = logo or os.path.join(HERE, "assets", default_logo)
         self.logo = ImageReader(lp) if os.path.exists(lp) else None
 
+        self.backdrop_img = None
+        self.backdrop_pages = None
+
         self.c = canvas.Canvas(path, pagesize=(self.PW, self.PH))
         if title:
             self.c.setTitle(title)
@@ -147,9 +150,58 @@ class AmplifierDoc(object):
         return out
 
     # ------------------------------------------------------------ page shell
+    def set_backdrop(self, image_path, alpha=0.10, pages=None, band=None):
+        """Topical imagery sitting behind the page at 10%.
+
+        The image is composited against the page colour in advance rather than
+        drawn with a transparency group, so it prints exactly as it screens and
+        the PDF carries no alpha. pages limits it to specific page numbers;
+        band is (y_bottom, y_top) in points, defaulting to the full text block.
+        """
+        from PIL import Image
+        if not os.path.exists(image_path):
+            raise IOError("backdrop not found: %s" % image_path)
+        band = band or (58.0, 700.0)
+        w_pt = self.TW
+        h_pt = band[1] - band[0]
+        px_w, px_h = int(w_pt * 3), int(h_pt * 3)
+
+        im = Image.open(image_path).convert("RGB")
+        scale = max(px_w / im.width, px_h / im.height)
+        im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))),
+                       Image.LANCZOS)
+        left = (im.width - px_w) // 2
+        top = (im.height - px_h) // 2
+        im = im.crop((left, top, left + px_w, top + px_h))
+
+        # feather to the page colour on every edge, so the imagery dissolves
+        # into the sheet instead of sitting in a visible box
+        bg = Image.new("RGB", im.size, self.P["bg"])
+        blended = Image.blend(bg, im, alpha)
+        fx, fy = max(1, int(px_w * 0.22)), max(1, int(px_h * 0.28))
+        mask = Image.new("L", im.size, 255)
+        mp = mask.load()
+        for x in range(px_w):
+            gx = min(1.0, x / fx, (px_w - 1 - x) / fx)
+            for y in range(px_h):
+                gy = min(1.0, y / fy, (px_h - 1 - y) / fy)
+                g = gx * gy
+                mp[x, y] = int(255 * (g * g * (3 - 2 * g)))
+        im = Image.composite(blended, bg, mask)
+
+        out = os.path.splitext(image_path)[0] + "_backdrop.png"
+        im.save(out)
+        self.backdrop_img = (ImageReader(out), self.ML, band[0], w_pt, h_pt)
+        self.backdrop_pages = pages
+        return out
+
     def new_page(self, page_no, total):
         c = self.c
         self.rect(0, 0, self.PW, self.PH, self.BG)
+        if self.backdrop_img and (self.backdrop_pages is None
+                                  or page_no in self.backdrop_pages):
+            img, bx, by, bw, bh = self.backdrop_img
+            c.drawImage(img, bx, by, width=bw, height=bh, mask=None)
         if self.dark:
             c.saveState(); c.setStrokeColor(HexColor("#ffffff")); c.setStrokeAlpha(0.035)
             c.setLineWidth(0.3)
@@ -186,11 +238,8 @@ class AmplifierDoc(object):
         return y - 20
 
     def hero(self, text, y=636, size=None):
-        """Display line. In the design palette a wash block sits behind it."""
+        """Display line. Set on the open page, no block behind it."""
         size = size or (47 if self.dark else 44)
-        if not self.dark:
-            w = self.c.stringWidth(text, self.DISPLAY, size)
-            self.rect(self.ML - 8, y - 13, w + 26, size * 0.93, self.SURF)
         self.draw(self.ML, y, text, self.DISPLAY, size, self.TX)
         return y - size * 0.62
 
@@ -376,31 +425,50 @@ class AmplifierDoc(object):
             self.draw(self.ML + pad, ty, ln, "Sans", size, body); ty -= leading
         return y - h
 
+    # rhythm constants for def_row, so every row in every document measures
+    # the same: the keyline is a separator between rows, not a hat on a title
+    RULE_ABOVE_TITLE = 18.0
+    TITLE_TO_BODY = 15.0
+    BODY_TO_NEXT_RULE = 14.0
+    TITLE_LINE = 13.0
+
     def def_row(self, y, tag, title, body, right=None, right_color=None,
-                tag_w=78.0, size=8.8, leading=11.8, gap=9.0, shade=False):
+                tag_w=78.0, size=8.8, leading=11.8, gap=0.0, shade=False):
         """Definition row: mono tag at the left, title, optional right hand
-        verdict, wrapped body indented under the title. The workhorse for
-        criteria, lanes and numbered arguments."""
+        verdict, wrapped body under the title. y is the title baseline.
+        The workhorse for criteria, lanes, tiers and numbered arguments."""
         x_body = self.ML + tag_w
-        lines = self.wrap_plain(body, "Sans", size, self.R - x_body) if body else []
-        # the title never runs under the right hand label
-        rw = (self.tracked_w(right, "Mono-B", 6.4, 1.0) + 14) if right else 0.0
+        rw = (self.tracked_w(right, "Mono-B", 6.4, 1.0) + 16) if right else 0.0
         t_lines = self.wrap_plain(title, "Sans-SB", 10.4, self.R - x_body - rw) or [title]
-        h = 16 + 12 + (len(t_lines) - 1) * 13 + len(lines) * leading
+        lines = self.wrap_plain(body, "Sans", size, self.R - x_body) if body else []
+        t_extra = (len(t_lines) - 1) * self.TITLE_LINE
+        if lines:
+            consumed = (t_extra + self.TITLE_TO_BODY + (len(lines) - 1) * leading
+                        + self.BODY_TO_NEXT_RULE + self.RULE_ABOVE_TITLE)
+        else:
+            consumed = t_extra + 12.0 + self.RULE_ABOVE_TITLE
         if shade:
-            self.rect(self.ML, y - h + 4, self.TW, h - 2, self.SURF)
-        self.rule(y + 7)
-        self.tracked(self.ML, y - 2, tag.upper(), "Mono-B", 5.8, self.MUT, 0.9)
+            self.rect(self.ML, y + self.RULE_ABOVE_TITLE - consumed, self.TW,
+                      consumed - 1, self.SURF)
+        self.rule(y + self.RULE_ABOVE_TITLE)
+        self.tracked(self.ML, y, tag.upper(), "Mono-B", 5.8, self.MUT, 0.9)
         ty = y
         for tl in t_lines:
-            self.draw(x_body, ty, tl, "Sans-SB", 10.4, self.TX); ty -= 13
+            self.draw(x_body, ty, tl, "Sans-SB", 10.4, self.TX)
+            ty -= self.TITLE_LINE
         if right:
             self.tracked(self.R - self.tracked_w(right, "Mono-B", 6.4, 1.0), y,
                          right, "Mono-B", 6.4, right_color or self.AC, 1.0)
-        ty = y - 15 - (len(t_lines) - 1) * 13
+        by = y - t_extra - self.TITLE_TO_BODY
         for ln in lines:
-            self.draw(x_body, ty, ln, "Sans", size, self.BODY); ty -= leading
-        return y - h - gap + 6
+            self.draw(x_body, by, ln, "Sans", size, self.BODY)
+            by -= leading
+        return y - consumed - gap
+
+    def rows_start(self, y, after="para"):
+        """Where the first def_row title baseline goes, so its keyline keeps
+        the same clearance from whatever sits above it."""
+        return y - {"para": 21.0, "label": 19.0, "head": 24.0}[after]
 
     def bullet_list(self, y, items, size=8.8, leading=12.0, gap=7.0, indent=13.0):
         """Square marker in the accent. No dashes anywhere in this system."""
@@ -418,12 +486,12 @@ class AmplifierDoc(object):
         x_title = x_title or self.ML + 34
         x_desc = x_desc or self.ML + 190
         for num, title, desc in rows:
-            self.rule(y + 11)
+            self.rule(y + 12)
             self.tracked(self.ML, y, num, "Mono-B", 7.6, self.AC, 1.0)
             self.draw(x_title, y, title, "Sans-SB", 9.4, self.TX)
             self.draw(x_desc, y, desc, "Sans", 8.6, self.BODY)
-            y -= 20
-        self.rule(y + 11)
+            y -= 21
+        self.rule(y + 12)
         return y
 
     def fine_print(self, y, text, size=6.4, leading=9.0):

@@ -15,7 +15,8 @@ PAL = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT).upper()
 TAG = "dark" if "DARK" in PAL else "design"
 OUT = os.path.join(D, "Sona2_Model_Performance_Summary_%s.pdf" % TAG)
 CHART = os.path.join(D, "chart_auc_%s.png" % TAG)
-TOTAL = 7
+BACKDROP = os.path.join(os.path.dirname(D), "assets", "imagery", "sona2.jpg")
+TOTAL = 6
 
 FLAGSHIP = [
     ("Traumatic brain injury",      "0.962", "0.896", "0.891", "1,773"),
@@ -127,8 +128,7 @@ def page_one(d):
         ("04", "Next Generation",           "WavLM architecture, evaluated and held for release"),
         ("05", "Published Literature",      "What the team has in print and in review"),
         ("06", "Against The Field",         "Sona-2 next to published benchmarks, condition by condition"),
-        ("07", "Competitive Landscape",     "Who is left, and what happened to the rest"),
-        ("08", "Publication Timeline",      "Manuscripts, venues and the sequence to Series A"),
+        ("07", "Publication Timeline",      "Manuscripts, venues and the sequence to Series A"),
     ])
 
     d.fine_print(78, "Every metric in this document is measured against conversational primary "
@@ -149,7 +149,7 @@ def page_two(d):
          "two tier internal registry.", "r"),
     ], size=9.2, leading=13.2)
 
-    y -= 10
+    y = d.rows_start(y, "para")
     for tag, title, right, body in [
         ("Tier one", "Model Garden", "28 MODELS",
          "General release and production eligible. The ten flagship conditions in Section 02 sit "
@@ -263,7 +263,7 @@ def page_five(d):
         "performance base.",
     ], size=9.0, leading=12.8)
 
-    y = d.section_head(y - 22, "04", "Next Generation Architecture")
+    y = d.section_head(y - 24, "04", "Next Generation Architecture")
     y = d.h2(y - 4, "WavLM, Evaluated And Held")
     y = d.para(d.ML, y - 16, [
         ("A WavLM based neural architecture, internal v1.0 and sometimes called the shared "
@@ -271,38 +271,20 @@ def page_five(d):
          "production across ten conditions in July 2026. It reached ", "r"),
         ("near parity with production", "b"),
         (", mean AUC 0.854 against 0.866, and improved results on PTSD, allergy and "
-         "hypertension. Robustness to acoustic perturbation is comparable to the current "
-         "production model. It is being held for the next scheduled platform update, targeted "
-         "for the end of Q3 2026, as part of the quarterly release cadence.", "r"),
+         "hypertension. It is held for the next scheduled platform update, targeted for the "
+         "end of Q3 2026, as part of the quarterly release cadence.", "r"),
     ], size=9.0, leading=12.8)
 
-    y = d.stat_cells(y - 18, [
-        ("0.854", "", "MEAN AUC, WavLM", "ACROSS TEN CONDITIONS"),
-        ("0.866", "", "MEAN AUC, CURRENT", "PRODUCTION v0.2.0"),
-        ("3",     "", "CONDITIONS IMPROVED:", "PTSD, ALLERGY, HYPERTENSION"),
-        ("Q3",    "", "TARGETED PLATFORM", "UPDATE FOR RELEASE"),
-    ], h=62)
-
-    d.callout_dark(0, "The decision in one line",
-        "The next architecture is trained, evaluated and sitting on the shelf at near parity. "
-        "It is held for release cadence, not for performance.", y_bottom=72.0)
-    d.end_page()
-
-
-def page_six(d):
-    d.new_page(6, TOTAL)
-    y = d.section_head(680, "05", "Published Literature")
+    y = d.section_head(y - 26, "05", "Published Literature")
     y = d.h2(y - 4, "What The Team Has In Print")
-
-    y -= 12
+    y = d.rows_start(y, "head")
     for tag, title, right, body in [
         ("In print", "Conversational speech for respiratory triage in primary care",
          "FRONTIERS IN MEDICINE 2026",
          "Ravi, V. and Noufi, C., 2026;13:1895376, both authors affiliated with Amplifier "
          "Health. Used 514,377 ambient recorded primary care visits across 379,225 patients to "
          "train eleven binary respiratory classifiers, with test set AUCs from 0.602 to 0.745. "
-         "A broader respiratory triage effort related to the COPD model in the current Model "
-         "Garden. A medRxiv preprint went live in June 2026."),
+         "A medRxiv preprint went live in June 2026."),
         ("In print", "Translating AI research into reality, the 2025 Voice AI Symposium",
          "FRONTIERS IN DIGITAL HEALTH 2026",
          "Camille Noufi, lead model scientist, co authored this field overview, 2026;8:1754426, "
@@ -312,19 +294,23 @@ def page_six(d):
         ("Foundation", "Pediatric TBI vocal biomarkers", "INTERSPEECH 2019",
          "Noufi's pre Amplifier academic work, the academic foundation behind the TBI model."),
     ]:
-        y = d.def_row(y, tag, title, body, right=right, right_color=d.MUT, tag_w=64.0,
+        y = d.def_row(y, tag, title, body, right=right, right_color=d.MUT, tag_w=66.0,
                       size=8.6, leading=11.4)
+    d.end_page()
 
-    y = d.section_head(y - 16, "06", "Against The Field")
+
+def page_six(d):
+    d.new_page(6, TOTAL)
+    y = d.section_head(680, "06", "Against The Field")
     y = d.h2(y - 4, "Sona-2 Next To Published Benchmarks")
-    y -= 12
+    y -= 20
 
     X_C, X_A, X_B = d.ML + 2, d.ML + 120, d.ML + 162
     y = d.table_header(y, [("CONDITION", X_C, "l"), ("SONA-2", X_A, "r"),
                            ("PUBLISHED BENCHMARK", X_B, "l")])
     for i, (cond, auc, note) in enumerate(BENCHMARKS):
         lines = d.wrap_plain(note, "Sans", 8.2, d.R - X_B - 2)
-        h = max(20.0, 10 + len(lines) * 11.0)
+        h = max(21.0, 11 + len(lines) * 11.0)
         if i % 2 == 0:
             d.rect(d.ML, y - h, d.TW, h, d.SURF)
         ty = y - h + (h - len(lines) * 11.0) / 2.0 + (len(lines) - 1) * 11.0
@@ -334,35 +320,8 @@ def page_six(d):
             d.draw(X_B, ty, ln, "Sans", 8.2, d.BODY); ty -= 11.0
         y -= h
     d.rule(y, d.AC, 0.8)
-    d.end_page()
 
-
-def page_seven(d):
-    d.new_page(7, TOTAL)
-    y = d.section_head(680, "07", "Competitive Landscape")
-    y = d.h2(y - 4, "Who Is Left")
-    y = d.para(d.ML, y - 14, [
-        ("Canary Speech and Thymia work in the same voice biomarker space. ", "r"),
-        ("None has an FDA cleared voice biomarker product", "b"),
-        (", which is how early and how open this market still is.", "r"),
-    ], size=9.2, leading=13.2)
-
-    y -= 10
-    for tag, title, right, body in [
-        ("Active", "Canary Speech", "DIFFERENT APPROACH",
-         "Runs their models as subject specific, which is fundamentally a different approach and "
-         "not a foundation model."),
-        ("Active", "Thymia", "SAME SPACE",
-         "Works in the same voice biomarker space. No FDA cleared product."),
-        ("Closed", "Kintsugi", "TALENT ACQUIRED",
-         "The company has closed. Oleksii, one of our AI scientists, was their lead AI and ML "
-         "engineer and we hired him."),
-        ("Closed", "Sonde", "IN NEGOTIATION",
-         "The company has closed and we are in negotiations to purchase them."),
-    ]:
-        y = d.def_row(y, tag, title, body, right=right, right_color=d.MUT, tag_w=64.0)
-
-    y = d.section_head(y - 16, "08", "Publication Timeline")
+    y = d.section_head(y - 30, "07", "Publication Timeline")
     y = d.h2(y - 4, "Manuscripts, Venues And Sequence")
     y = d.para(d.ML, y - 16, [
         ("Several Sona-2 publications are in active development. The prepared manuscripts are a "
@@ -373,8 +332,8 @@ def page_seven(d):
          "Scientific Reports as strong alternates.", "r"),
     ], size=9.0, leading=12.8)
 
-    y = d.label(y - 16, "The planned sequence")
-    y -= 2
+    y = d.label(y - 14, "The planned sequence")
+    y -= 4
     X_S, X_D = d.ML + 2, d.ML + 150
     for i, (step, desc) in enumerate([
         ("01  Provisional patent", "Filed first, before anything goes public."),
@@ -402,7 +361,7 @@ def main():
                      confidential="CONFIDENTIAL  ·  INTERNAL USE ONLY",
                      footer="AMPLIFIER HEALTH  ·  CONFIDENTIAL  ·  INTERNAL")
     page_one(d); page_two(d); page_three(d); page_four(d)
-    page_five(d); page_six(d); page_seven(d)
+    page_five(d); page_six(d)
     d.save()
     print("wrote", OUT, "in", d.P["name"])
 
