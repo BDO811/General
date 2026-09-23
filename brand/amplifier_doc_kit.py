@@ -271,9 +271,14 @@ class AmplifierDoc(object):
             nw = self.c.stringWidth(num, self.DISPLAY, 25)
             if suffix:
                 self.draw(x + 11 + nw + 2.5, ny, suffix, "Mono-M", 9.2, self.AC)
-            self.tracked(x + 11, y - h + 20, l1, "Mono-M", 5.5, self.MUT, 0.7)
+            avail = cw - 22
+            lsize = 5.5
+            while lsize > 4.2 and max(self.tracked_w(l1, "Mono-M", lsize, 0.7),
+                                      self.tracked_w(l2 or "", "Mono-M", lsize, 0.7)) > avail:
+                lsize -= 0.2
+            self.tracked(x + 11, y - h + 20, l1, "Mono-M", lsize, self.MUT, 0.7)
             if l2:
-                self.tracked(x + 11, y - h + 11, l2, "Mono-M", 5.5, self.MUT, 0.7)
+                self.tracked(x + 11, y - h + 11, l2, "Mono-M", lsize, self.MUT, 0.7)
         return y - h
 
     def pullquote(self, label, text, y_bottom=72.0):
@@ -332,3 +337,117 @@ class AmplifierDoc(object):
             self.draw(cx, y - 26, unit, "Sans", 8.6, self.BODY)
             cx += self.c.stringWidth(unit, "Sans", 8.6) + 26
         return y - h
+
+    # ------------------------------------------------- additional components
+    def deck(self, x, y, text, size=15.0, max_w=None):
+        """Italic deck line under a hero. The Newsreader voice."""
+        lines = self.wrap_plain(text, "News-I" if not self.dark else "Corm-SB",
+                                size, max_w or self.TW)
+        f = "News-I" if not self.dark else "Corm-SB"
+        for ln in lines:
+            self.draw(x, y, ln, f, size, self.BODY if not self.dark else self.TX)
+            y -= size * 1.28
+        return y
+
+    def h2(self, y, text, size=17.0):
+        self.draw(self.ML, y, text, self.DISPLAY, size, self.TX)
+        return y - size * 0.55
+
+    def label(self, y, text, color=None):
+        """Mono microtype label above a block."""
+        self.tracked(self.ML, y, text.upper(), "Mono-B", 5.8, color or self.AC, 1.0)
+        return y - 13
+
+    def callout_dark(self, y, label, text, pad=13.0, size=8.8, leading=12.2,
+                     y_bottom=None):
+        """Inverted panel. The flyer uses this weight for code and for the one
+        statement that must not be skimmed past."""
+        bg = self.PANEL if not self.dark else self.SURF2
+        body = HexColor("#e9e3d5") if not self.dark else self.TX
+        lab = self.AC2 if not self.dark else self.AC
+        lines = self.wrap_plain(text, "Sans", size, self.TW - pad * 2)
+        h = pad + 9 + 7 + len(lines) * leading + pad - 6
+        if y_bottom is not None:
+            y = y_bottom + h
+        self.rect(self.ML, y - h, self.TW, h, bg)
+        self.tracked(self.ML + pad, y - pad - 4, label.upper(), "Mono-B", 5.8, lab, 1.0)
+        ty = y - pad - 18
+        for ln in lines:
+            self.draw(self.ML + pad, ty, ln, "Sans", size, body); ty -= leading
+        return y - h
+
+    def def_row(self, y, tag, title, body, right=None, right_color=None,
+                tag_w=78.0, size=8.8, leading=11.8, gap=9.0, shade=False):
+        """Definition row: mono tag at the left, title, optional right hand
+        verdict, wrapped body indented under the title. The workhorse for
+        criteria, lanes and numbered arguments."""
+        x_body = self.ML + tag_w
+        lines = self.wrap_plain(body, "Sans", size, self.R - x_body) if body else []
+        # the title never runs under the right hand label
+        rw = (self.tracked_w(right, "Mono-B", 6.4, 1.0) + 14) if right else 0.0
+        t_lines = self.wrap_plain(title, "Sans-SB", 10.4, self.R - x_body - rw) or [title]
+        h = 16 + 12 + (len(t_lines) - 1) * 13 + len(lines) * leading
+        if shade:
+            self.rect(self.ML, y - h + 4, self.TW, h - 2, self.SURF)
+        self.rule(y + 7)
+        self.tracked(self.ML, y - 2, tag.upper(), "Mono-B", 5.8, self.MUT, 0.9)
+        ty = y
+        for tl in t_lines:
+            self.draw(x_body, ty, tl, "Sans-SB", 10.4, self.TX); ty -= 13
+        if right:
+            self.tracked(self.R - self.tracked_w(right, "Mono-B", 6.4, 1.0), y,
+                         right, "Mono-B", 6.4, right_color or self.AC, 1.0)
+        ty = y - 15 - (len(t_lines) - 1) * 13
+        for ln in lines:
+            self.draw(x_body, ty, ln, "Sans", size, self.BODY); ty -= leading
+        return y - h - gap + 6
+
+    def bullet_list(self, y, items, size=8.8, leading=12.0, gap=7.0, indent=13.0):
+        """Square marker in the accent. No dashes anywhere in this system."""
+        for item in items:
+            lines = self.wrap_plain(item, "Sans", size, self.TW - indent)
+            self.rect(self.ML, y + 2.2, 3.0, 3.0, self.AC)
+            for k, ln in enumerate(lines):
+                self.draw(self.ML + indent, y, ln, "Sans", size, self.BODY)
+                y -= leading
+            y -= gap
+        return y + gap
+
+    def contents(self, y, rows, x_title=None, x_desc=None):
+        """rows = [(number, title, description)]"""
+        x_title = x_title or self.ML + 34
+        x_desc = x_desc or self.ML + 190
+        for num, title, desc in rows:
+            self.rule(y + 11)
+            self.tracked(self.ML, y, num, "Mono-B", 7.6, self.AC, 1.0)
+            self.draw(x_title, y, title, "Sans-SB", 9.4, self.TX)
+            self.draw(x_desc, y, desc, "Sans", 8.6, self.BODY)
+            y -= 20
+        self.rule(y + 11)
+        return y
+
+    def fine_print(self, y, text, size=6.4, leading=9.0):
+        lines = self.wrap_plain(text, "Sans", size, self.TW)
+        for ln in lines:
+            self.draw(self.ML, y, ln, "Sans", size, self.MUT); y -= leading
+        return y
+
+    def two_col_list(self, y, left_head, left_items, right_head, right_items,
+                     size=8.4, leading=13.2):
+        """Two lists side by side under mono heads. Used for claim language."""
+        mid = self.ML + self.TW / 2.0 + 6
+        col_w = self.TW / 2.0 - 12
+        self.tracked(self.ML, y, left_head.upper(), "Mono-B", 5.8, self.AC, 1.0)
+        self.tracked(mid, y, right_head.upper(), "Mono-B", 5.8, self.AC2 if not self.dark
+                     else self.AC2, 1.0)
+        self.rule(y - 7)
+        ly = ry = y - 20
+        for item in left_items:
+            for ln in self.wrap_plain(item, "Sans", size, col_w - 13):
+                self.draw(self.ML + 13, ly, ln, "Sans", size, self.BODY); ly -= leading
+            self.rect(self.ML, ly + leading + 2.2, 3.0, 3.0, self.AC)
+        for item in right_items:
+            for ln in self.wrap_plain(item, "Sans", size, col_w - 13):
+                self.draw(mid + 13, ry, ln, "Sans", size, self.BODY); ry -= leading
+            self.rect(mid, ry + leading + 2.2, 3.0, 3.0, self.AC2)
+        return min(ly, ry)
