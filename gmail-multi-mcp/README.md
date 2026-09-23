@@ -98,6 +98,28 @@ A reauth that lands on a different Google account than the alias was registered
 with is refused and the token discarded, so a mis-click in the browser cannot
 silently repoint `helix` at another mailbox.
 
+## Scheduled health check
+
+```bash
+gmail-multi-mcp schedule --at 12:00     # install a daily launchd job (macOS)
+gmail-multi-mcp schedule --status       # is it installed and loaded
+gmail-multi-mcp schedule --off          # remove it
+```
+
+The job runs `gmail-multi-mcp refresh`, which loads every account, refreshes any
+aged-out access token, and makes one Gmail call to prove the refresh token still
+works. Output lands in `~/.gmail-multi-mcp/logs/refresh.log`, and a failure
+raises a macOS notification naming the accounts to repair.
+
+It does **not** defeat the seven-day testing-mode expiry, which is fixed when the
+token is issued and can only be cleared by consenting again in a browser. What it
+does buy: tokens stay warm, the separate six-month inactivity expiry never
+triggers, and a dead mailbox surfaces on a schedule rather than in the middle of
+something.
+
+On Linux, `schedule` prints the equivalent cron line instead of installing
+anything.
+
 ## Troubleshooting
 
 **`OAuth client file not found at ~/.gmail-multi-mcp/client_secret.json`**
@@ -153,6 +175,8 @@ gmail-multi-mcp list [--json]
 gmail-multi-mcp default <alias>
 gmail-multi-mcp remove <alias>
 gmail-multi-mcp reauth [alias] [--all] [--no-browser]
+gmail-multi-mcp refresh [--notify]
+gmail-multi-mcp schedule [--at HH:MM] [--off] [--status]
 gmail-multi-mcp test [alias]
 gmail-multi-mcp paths
 gmail-multi-mcp serve

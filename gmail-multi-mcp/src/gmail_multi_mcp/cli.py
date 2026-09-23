@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import plistlib
+import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from .auth import AuthError, load_credentials, run_consent_flow, token_status, whoami
 from .config import (
@@ -136,6 +141,179 @@ def cmd_reauth(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+SCHEDULE_LABEL = "com.gmail-multi-mcp.refresh"
+
+
+def _executable() -> str | None:
+    """Absolute path to this CLI, so a scheduled job never depends on PATH.
+
+    sys.argv[0] is not trustworthy: under `python -m` or a piped script it is a
+    module name or "-", and writing that into a launchd plist installs a job that
+    silently never runs. Prefer the console script sitting next to the running
+    interpreter, which is exactly right for a venv install.
+    """
+    import shutil
+
+    candidates = [
+        Path(sys.executable).parent / "gmail-multi-mcp",
+        Path(sys.argv[0]) if sys.argv and sys.argv[0] else None,
+        Path(shutil.which("gmail-multi-mcp") or ""),
+    ]
+    for candidate in candidates:
+        if candidate is None or not str(candidate):
+            continue
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved.is_file() and os.access(resolved, os.X_OK):
+            return str(resolved)
+    return None
+
+
+def _log_path() -> Path:
+    return home() / "logs" / "refresh.log"
+
+
+def _notify(broken: list[str]) -> None:
+    if sys.platform != "darwin":
+        return
+    title = f"Gmail MCP: {len(broken)} account(s) need re-authorization"
+    body = f"{', '.join(broken)}. Run: gmail-multi-mcp reauth"
+    script = (
+        f"display notification {json.dumps(body)} with title {json.dumps(title)}"
+    )
+    subprocess.run(["osascript", "-e", script], check=False,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def cmd_refresh(args: argparse.Namespace) -> int:
+    """Exercise every token once. Intended for a scheduled job.
+
+    Loading credentials refreshes the access token when it has aged out, and the
+    profile call proves the refresh token is still good. This cannot extend the
+    seven-day testing-mode expiry, which is fixed at issue time, but it does keep
+    tokens warm, defeats the six-month inactivity expiry, and surfaces a dead
+    account on a schedule instead of mid-task.
+    """
+    from . import gmail_client as gm
+
+    registry = Registry()
+    accounts = registry.accounts()
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if not accounts:
+        print(f"[{stamp}] no accounts registered", flush=True)
+        return 1
+
+    broken: list[str] = []
+    for alias, account in sorted(accounts.items()):
+        try:
+            info = gm.profile(account)
+            print(f"[{stamp}] ok    {alias:<12} {info['email']}", flush=True)
+        except (AuthError, gm.GmailError) as exc:
+            broken.append(alias)
+            print(f"[{stamp}] FAIL  {alias:<12} {exc}", flush=True)
+
+    if broken:
+        print(f"[{stamp}] {len(broken)} account(s) need: gmail-multi-mcp reauth", flush=True)
+        if args.notify:
+            _notify(broken)
+        return 1
+    return 0
+
+
+def _plist_path() -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{SCHEDULE_LABEL}.plist"
+
+
+def _launchctl(*argv: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["launchctl", *argv], capture_output=True, text=True)
+
+
+def cmd_schedule(args: argparse.Namespace) -> int:
+    """Install, remove, or inspect the daily launchd job."""
+    if sys.platform != "darwin":
+        print("schedule is macOS only. On Linux use cron or a systemd timer:",
+              file=sys.stderr)
+        print(f"  0 12 * * *  {_executable() or 'gmail-multi-mcp'} refresh", file=sys.stderr)
+        return 1
+
+    path = _plist_path()
+    domain = f"gui/{os.getuid()}"
+
+    if args.status:
+        print(f"plist:   {path}")
+        print(f"exists:  {path.exists()}")
+        result = _launchctl("print", f"{domain}/{SCHEDULE_LABEL}")
+        print(f"loaded:  {result.returncode == 0}")
+        print(f"log:     {_log_path()}")
+        return 0
+
+    if args.off:
+        _launchctl("bootout", f"{domain}/{SCHEDULE_LABEL}")
+        if path.exists():
+            path.unlink()
+            print(f"Removed the daily refresh job ({path}).")
+        else:
+            print("No scheduled job was installed.")
+        return 0
+
+    try:
+        hour_s, _, minute_s = args.at.partition(":")
+        hour, minute = int(hour_s), int(minute_s or 0)
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ValueError
+    except ValueError:
+        print(f"Could not read --at '{args.at}'. Use 24 hour HH:MM, e.g. 12:00",
+              file=sys.stderr)
+        return 1
+
+    executable = _executable()
+    if executable is None:
+        print("Could not locate the gmail-multi-mcp executable to schedule. Run this "
+              "as the installed command, for example "
+              "/path/to/.venv/bin/gmail-multi-mcp schedule", file=sys.stderr)
+        return 1
+
+    log = _log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+
+    env = {"GMAIL_MULTI_MCP_HOME": str(home())}
+    if os.environ.get("GMAIL_MULTI_MCP_CLIENT_SECRET"):
+        env["GMAIL_MULTI_MCP_CLIENT_SECRET"] = os.environ["GMAIL_MULTI_MCP_CLIENT_SECRET"]
+
+    job = {
+        "Label": SCHEDULE_LABEL,
+        "ProgramArguments": [executable, "refresh", "--notify"],
+        "StartCalendarInterval": {"Hour": hour, "Minute": minute},
+        "StandardOutPath": str(log),
+        "StandardErrorPath": str(log),
+        "RunAtLoad": False,
+        "EnvironmentVariables": env,
+    }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as fh:
+        plistlib.dump(job, fh)
+
+    # Replace any previous copy, otherwise bootstrap refuses with "already loaded".
+    _launchctl("bootout", f"{domain}/{SCHEDULE_LABEL}")
+    result = _launchctl("bootstrap", domain, str(path))
+    if result.returncode != 0:
+        legacy = _launchctl("load", "-w", str(path))
+        if legacy.returncode != 0:
+            print(f"Wrote {path} but launchctl refused to load it:\n"
+                  f"{result.stderr.strip() or legacy.stderr.strip()}", file=sys.stderr)
+            return 1
+
+    print(f"Daily refresh scheduled for {hour:02d}:{minute:02d} local time.")
+    print(f"Job:  {path}")
+    print(f"Log:  {log}")
+    print(f"Off:  gmail-multi-mcp schedule --off")
+    return 0
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     registry = Registry()
     rows = token_status(registry)
@@ -259,6 +437,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_re.add_argument("--timeout", type=int, default=300,
                       help="seconds to wait for each redirect (default 300)")
     p_re.set_defaults(func=cmd_reauth)
+
+    p_ref = sub.add_parser("refresh",
+                           help="exercise every token once; for scheduled runs")
+    p_ref.add_argument("--notify", action="store_true",
+                       help="send a macOS notification when an account fails")
+    p_ref.set_defaults(func=cmd_refresh)
+
+    p_sched = sub.add_parser("schedule",
+                             help="install a daily launchd job that runs refresh")
+    p_sched.add_argument("--at", default="12:00", help="24 hour HH:MM (default 12:00)")
+    p_sched.add_argument("--off", action="store_true", help="remove the scheduled job")
+    p_sched.add_argument("--status", action="store_true", help="show whether it is installed")
+    p_sched.set_defaults(func=cmd_schedule)
 
     p_test = sub.add_parser("test", help="call Gmail once per account to verify tokens")
     p_test.add_argument("alias", nargs="?")
