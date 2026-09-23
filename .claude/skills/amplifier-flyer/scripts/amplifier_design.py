@@ -368,9 +368,17 @@ def proposal_cover(d, partner, tagline, meta_left, meta_right,
         ty -= 13.0
 
 def proposal_section(d, y, number, title, serif_sub=None):
-    """Mono section header. number is a two digit string. Returns next y."""
+    """Mono section header. number is a two digit string. Returns next y.
+
+    The title shrinks if it would cross the right margin. Prefer a shorter
+    title over a shrunk one: the header size carries the hierarchy.
+    """
     d.text(PRO_ML, y, "/ %s" % number, MONO, 13.5, INK, tracking=0.5)
-    d.text(PG["SECTION_TITLE_X"], y, title.upper(), MONO, 13.5, INK, tracking=0.5)
+    avail = PW - PRO_MR - PG["SECTION_TITLE_X"]
+    size = 13.5
+    while size > 9.5 and d.width(title.upper(), MONO, size, 0.5) > avail:
+        size -= 0.25
+    d.text(PG["SECTION_TITLE_X"], y, title.upper(), MONO, size, INK, tracking=0.5)
     y -= PG["SUBHEAD_DY"]
     if serif_sub:
         d.text(PG["SUBHEAD_X"], y, serif_sub, NEWS, PG["SUBHEAD_SIZE"], ITALIC)
