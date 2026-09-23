@@ -143,6 +143,33 @@ def get_thread(account: Account, thread_id: str, include_body: bool = True) -> d
     return {"account": account.alias, "thread_id": thread_id, "messages": messages}
 
 
+def list_drafts(account: Account, max_results: int = 50,
+                query: str | None = None) -> list[dict]:
+    """Enumerate drafts with their draft ids, which send_draft needs.
+
+    A message search with in:drafts returns message ids, not draft ids, so this
+    has to go through the drafts endpoint.
+    """
+    listing = _call(
+        account,
+        lambda svc: svc.users().drafts().list(
+            userId="me", maxResults=max(1, min(max_results, 100)), q=query or None
+        ),
+    )
+    out = []
+    for stub in listing.get("drafts", []):
+        detail = _call(
+            account,
+            lambda svc, did=stub["id"]: svc.users().drafts().get(
+                userId="me", id=did, format="metadata"
+            ),
+        )
+        record = summarize(account.alias, detail.get("message", {}))
+        record["draft_id"] = detail.get("id")
+        out.append(record)
+    return out
+
+
 def list_labels(account: Account) -> list[dict]:
     data = _call(account, lambda svc: svc.users().labels().list(userId="me"))
     return [

@@ -182,6 +182,24 @@ def get_thread(
 
 
 @mcp.tool(annotations=READ_ONLY)
+def list_drafts(
+    account: AccountArg = None,
+    max_results: Annotated[int, Field(default=50, ge=1, le=100)] = 50,
+    query: Annotated[
+        str | None,
+        Field(default=None, description="Optional Gmail search to narrow the drafts"),
+    ] = None,
+) -> dict:
+    """List unsent drafts in one account, each with the draft_id that send_draft takes.
+
+    Always show the caller what is in the list before sending anything: a mailbox
+    can hold abandoned drafts years old, addressed to real people.
+    """
+    drafts = _run(account, gm.list_drafts, max_results, query)
+    return {"account": _resolve(account).alias, "count": len(drafts), "drafts": drafts}
+
+
+@mcp.tool(annotations=READ_ONLY)
 def list_labels(account: AccountArg = None) -> dict:
     """List label ids and names for one account, needed before modify_labels."""
     labels = _run(account, gm.list_labels)

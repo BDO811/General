@@ -54,8 +54,8 @@ def seed() -> Registry:
 
 EXPECTED_TOOLS = {
     "list_accounts", "account_profile", "search_messages", "search_all_accounts",
-    "get_message", "get_thread", "list_labels", "create_draft", "send_message",
-    "send_draft", "modify_labels",
+    "get_message", "get_thread", "list_labels", "list_drafts", "create_draft",
+    "send_message", "send_draft", "modify_labels",
 }
 
 
