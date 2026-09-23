@@ -30,8 +30,10 @@ def cmd_add(args: argparse.Namespace) -> int:
         return 1
 
     scopes = READONLY_SCOPES if args.readonly else DEFAULT_SCOPES
+    use_browser = False if args.no_browser else None
     try:
-        creds = run_consent_flow(alias, scopes, port=args.port)
+        creds = run_consent_flow(alias, scopes, port=args.port,
+                                 use_browser=use_browser, timeout_seconds=args.timeout)
         email = whoami(creds)
     except AuthError as exc:
         print(f"Authorization failed: {exc}", file=sys.stderr)
@@ -149,6 +151,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument("--default", action="store_true", help="make this the default account")
     p_add.add_argument("--force", action="store_true", help="re-authorize an existing alias")
     p_add.add_argument("--port", type=int, default=0, help="loopback port for the OAuth redirect")
+    p_add.add_argument("--no-browser", action="store_true",
+                       help="do not open a browser, just print the URL to paste")
+    p_add.add_argument("--timeout", type=int, default=300,
+                       help="seconds to wait for the redirect back (default 300)")
     p_add.set_defaults(func=cmd_add)
 
     p_list = sub.add_parser("list", help="show registered accounts and token health")

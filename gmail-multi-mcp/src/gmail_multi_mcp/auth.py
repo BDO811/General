@@ -8,7 +8,9 @@ error telling the operator which CLI command to run.
 from __future__ import annotations
 
 import json
+import os
 import threading
+import webbrowser
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -80,12 +82,32 @@ def persist_credentials(alias: str, creds: Credentials) -> None:
     write_private_json(token_path(alias), payload)
 
 
-def run_consent_flow(alias: str, scopes: list[str], port: int = 0) -> Credentials:
+def browser_available() -> bool:
+    """True when this machine can actually open a browser.
+
+    Checked up front because run_local_server opens the browser before it prints
+    anything: if the open raises, the flow dies without ever showing the URL.
+    """
+    if os.environ.get("GMAIL_MULTI_MCP_NO_BROWSER"):
+        return False
+    try:
+        webbrowser.get()
+        return True
+    except webbrowser.Error:
+        return False
+
+
+def run_consent_flow(alias: str, scopes: list[str], port: int = 0,
+                     use_browser: bool | None = None,
+                     timeout_seconds: int = 300) -> Credentials:
     """Run the local loopback OAuth flow for one account.
 
     Google ties the refresh token to the Google account picked in the browser, so
     running this once per Gmail account is what gives the server its separate
     identities.
+
+    The URL is always printed, whether or not a browser opened, so the flow stays
+    usable over SSH and recoverable when the browser lands on the wrong profile.
     """
     from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -97,20 +119,52 @@ def run_consent_flow(alias: str, scopes: list[str], port: int = 0) -> Credential
             "point GMAIL_MULTI_MCP_CLIENT_SECRET at it."
         )
 
-    flow = InstalledAppFlow.from_client_secrets_file(str(secret), scopes=scopes)
-    creds = flow.run_local_server(
-        port=port,
-        prompt="consent",          # force a refresh token even on re-auth
-        access_type="offline",
-        authorization_prompt_message=(
-            f"\nAuthorize the Gmail account you want stored as '{alias}'.\n"
-            "Pick the right account in the browser window that just opened.\n"
-        ),
-        success_message=(
-            f"Account '{alias}' authorized. You can close this tab and return to the terminal."
-        ),
-        open_browser=True,
+    if use_browser is None:
+        use_browser = browser_available()
+
+    if use_browser:
+        opening = "A browser window should open now. Pick the right account in it."
+    else:
+        opening = (
+            "No browser is available here, so nothing will open automatically."
+        )
+
+    print(f"\nAuthorizing the Gmail account to store as '{alias}'.")
+    print(opening)
+    print(
+        "\nIf the window did not open, or opened on the wrong Google account, "
+        "open this URL\nin a browser running on THIS machine:\n"
     )
+
+    flow = InstalledAppFlow.from_client_secrets_file(str(secret), scopes=scopes)
+    try:
+        creds = flow.run_local_server(
+            port=port,
+            prompt="consent",          # force a refresh token even on re-auth
+            access_type="offline",
+            open_browser=use_browser,
+            timeout_seconds=timeout_seconds,
+            # {url} is required here: without it the library prints nothing useful
+            # and a failed browser open leaves no way to continue.
+            authorization_prompt_message="    {url}\n\nWaiting for Google to redirect back to this machine...",
+            success_message=(
+                f"Account '{alias}' authorized. Close this tab and return to the terminal."
+            ),
+        )
+    except webbrowser.Error as exc:
+        raise AuthError(
+            f"Could not open a browser ({exc}). Re-run with --no-browser to get a "
+            "URL you can paste in yourself."
+        ) from exc
+    except Exception as exc:
+        if "Timed out" in str(exc) or type(exc).__name__ == "WSGITimeoutError":
+            raise AuthError(
+                f"Timed out after {timeout_seconds}s waiting for Google to redirect back. "
+                "The browser must run on the same machine as this command, because the "
+                "redirect goes to localhost. Run this on your laptop, not on a remote box."
+            ) from exc
+        raise
+
     persist_credentials(alias, creds)
     return creds
 

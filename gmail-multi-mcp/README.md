@@ -69,6 +69,37 @@ gmail-multi-mcp list
 gmail-multi-mcp test
 ```
 
+The authorization URL is always printed, whether or not a browser opened, so you
+can paste it in yourself if the window went to the wrong Google profile. Pass
+`--no-browser` to skip the automatic open entirely.
+
+Run `add` on the machine where the browser runs. Google redirects to
+`http://localhost:<port>` and that callback has to reach the process that is
+waiting. Over SSH, forward the port first with `ssh -L 8765:localhost:8765` and
+pass `--port 8765`.
+
+## Troubleshooting
+
+**`OAuth client file not found at ~/.gmail-multi-mcp/client_secret.json`**
+Step 1 is not done. There is no OAuth client to authorize against, so nothing
+opens. Create the Desktop app client in Google Cloud Console and save the
+downloaded JSON at that exact path.
+
+**Nothing opens and nothing prints**
+You are on a build before the URL fix. Pull the latest and retry.
+
+**`Error 403: access_denied`**
+The Gmail address you picked is not on the consent screen's test user list. Add
+it under OAuth consent screen, Test users, then retry.
+
+**`Timed out waiting for Google to redirect back`**
+The browser is on a different machine from the command. See the SSH note above.
+
+**Browser opened on the wrong Google account**
+Sign out of the extra accounts, or paste the printed URL into a private window.
+The address is read back from Google after consent, so a mismatch is reported
+rather than silently stored.
+
 ### 4. Register the server with your client
 
 See `examples/claude_desktop_config.json` and `examples/claude_code_mcp.json`.
