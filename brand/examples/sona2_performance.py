@@ -360,6 +360,10 @@ def main():
                      subject="Held out validation, benchmarks and publication status",
                      confidential="CONFIDENTIAL  ·  INTERNAL USE ONLY",
                      footer="AMPLIFIER HEALTH  ·  CONFIDENTIAL  ·  INTERNAL")
+    if os.path.exists(BACKDROP):
+        d.set_backdrop(BACKDROP, alpha=0.10)
+    d.cover(topic="Sona-2 Model Performance", date="August 2026")
+    d.end_page()
     page_one(d); page_two(d); page_three(d); page_four(d)
     page_five(d); page_six(d)
     d.save()

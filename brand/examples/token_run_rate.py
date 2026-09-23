@@ -321,6 +321,8 @@ def main():
     d = AmplifierDoc(OUT, palette=PAL,
                      title="Amplifier Health, Token Run Rate, September 2026",
                      subject="Token consumption, run rate and projection to June 2027")
+    d.cover(topic="Token Run Rate", date="September 2026")
+    d.end_page()
     page_one(d); page_two(d); page_three(d); page_four(d); page_five(d)
     d.save()
     print("wrote", OUT, "in", d.P["name"])

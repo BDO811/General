@@ -233,6 +233,60 @@ class AmplifierDoc(object):
         self.c.save()
 
     # ------------------------------------------------------------ components
+    def cover(self, topic=None, date=None, url="try.amplifierhealth.com",
+              wordmark="Amplifier Health", logo_width=212.0):
+        """Brand cover. Centred: logo large, the company name, the document's
+        topic under it in the accent, the try link at the foot. No page chrome,
+        no page number."""
+        c = self.c
+        cx = self.PW / 2.0
+        self.rect(0, 0, self.PW, self.PH, self.BG)
+        if self.backdrop_img:
+            img, bx, by, bw, bh = self.backdrop_img
+            c.drawImage(img, bx, by, width=bw, height=bh, mask=None)
+
+        if self.logo:
+            lh = logo_width * 191 / 700.0
+            c.drawImage(self.logo, cx - logo_width / 2.0, 516, width=logo_width,
+                        height=lh, mask="auto")
+
+        c.setFont(self.DISPLAY, 52); c.setFillColor(self.TX)
+        c.drawCentredString(cx, 428, wordmark)
+
+        if topic:
+            size = 32
+            while size > 18 and c.stringWidth(topic, self.DISPLAY, size) > self.TW - 40:
+                size -= 1
+            c.setFont(self.DISPLAY, size); c.setFillColor(self.AC)
+            c.drawCentredString(cx, 428 - 40, topic)
+            ry = 428 - 40 - 26
+        else:
+            ry = 428 - 30
+
+        self.rect(cx - 26, ry, 52, 1.2, self.AC)
+
+        if date:
+            w = self.tracked_w(date.upper(), "Mono-B", 6.4, 1.4)
+            self.tracked(cx - w / 2.0, ry - 22, date.upper(), "Mono-B", 6.4, self.MUT, 1.4)
+
+        # the try link, set the way the deck sets it: the host in the accent
+        head, tail = url.split("amplifier", 1)
+        head = head + "amplifier"
+        usize = 30
+        wh = c.stringWidth(head, self.DISPLAY, usize)
+        wt = c.stringWidth(tail, self.DISPLAY, usize)
+        x0 = cx - (wh + wt) / 2.0
+        lw = self.tracked_w("TRY IT YOURSELF", "Mono-B", 6.2, 1.4)
+        self.rect(cx - lw / 2.0 - 22, 190.5, 14, 0.9, self.AC)
+        self.tracked(cx - lw / 2.0, 188, "TRY IT YOURSELF", "Mono-B", 6.2, self.MUT, 1.4)
+        self.draw(x0, 150, head, self.DISPLAY, usize, self.TX)
+        self.draw(x0 + wh, 150, tail, self.DISPLAY, usize, self.AC)
+
+        lab = self.confidential
+        w = self.tracked_w(lab, "Mono-M", 6.0, 0.9)
+        self.tracked(cx - w / 2.0, 96, lab, "Mono-M", 6.0, self.MUT, 0.9)
+        return self
+
     def eyebrow(self, text, y=686):
         self.tracked(self.ML, y, text, "Mono-B", 6.6, self.AC, 1.4)
         return y - 20

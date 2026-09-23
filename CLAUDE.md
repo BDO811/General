@@ -17,9 +17,11 @@ handed, even when the task is to restyle that document.
 is the screen variant. Use it only when asked for by name, or for product UI and
 dashboards.
 
-Two rules that are not optional: display type is set on the open page, never
-on a wash block, and every document carries topical imagery at 10% behind the
-text block, sourced from Pixabay via `brand/fetch_imagery.py`.
+Three rules that are not optional: every document opens on the brand cover
+(`d.cover(topic=..., date=...)`, logo large, Amplifier Health with the topic
+under it, try.amplifierhealth.com at the foot), display type is set on the open
+page and never on a wash block, and every document carries topical imagery at
+10% behind the text block, sourced from Pixabay via `brand/fetch_imagery.py`.
 
 Definitions, the document kit and worked examples live in `brand/`. The full
 system is in `.claude/skills/amplifier-design/SKILL.md`, which loads

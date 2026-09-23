@@ -22,9 +22,8 @@ def page_one(d):
     d.new_page(1, TOTAL)
     d.eyebrow("LP DILIGENCE  ·  SEPTEMBER 2026")
     y = d.hero("Diligence request.")
-    y = d.deck(d.ML, 596, "Fifteen answers, and the framing that decides how to read them.")
 
-    y = d.callout_dark(y - 16, "Note on framing",
+    y = d.callout_dark(y - 40, "Note on framing",
         "Amplifier is a frontier foundation model company, not an AI application company. The "
         "two are diligenced on different criteria, and answer 02 sets out why that distinction "
         "decides how to read everything else in here. Supporting material is attached and "
@@ -345,6 +344,8 @@ def main():
                      subject="Response to the LP diligence request of 22 September 2026")
     if os.path.exists(BACKDROP):
         d.set_backdrop(BACKDROP, alpha=0.10)
+    d.cover(topic="Due Diligence Questions", date="September 2026")
+    d.end_page()
     page_one(d); page_two(d); page_three(d)
     page_four(d); page_five(d); page_six(d)
     d.save()

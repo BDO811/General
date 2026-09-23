@@ -370,6 +370,8 @@ def main():
                      subject="FDA pathway and the two phase strategy")
     if os.path.exists(BACKDROP):
         d.set_backdrop(BACKDROP, alpha=0.10)
+    d.cover(topic="Regulatory Approach", date="September 2026")
+    d.end_page()
     page_one(d); page_two(d); page_three(d); page_four(d); page_five(d); page_six(d)
     d.save()
     print("wrote", OUT, "in", d.P["name"])

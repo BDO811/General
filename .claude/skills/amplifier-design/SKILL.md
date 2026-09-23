@@ -38,6 +38,7 @@ Type
 - Microtype, data, labels, code: **JetBrains Mono**
 
 Signature moves
+- Every document opens on the brand cover. See **Cover** below.
 - Display type sits on the **open page**. Never put a wash block, a highlight
   or any panel behind a headline. The hero line is set on bare paper.
 - Every document carries **topical imagery at 10% behind the text block**,
@@ -58,6 +59,25 @@ keylines, `#fafafa` / `#b4b4bc` / `#8b8b93` ink, `#22d3ee` cyan accent,
 `#10b981` emerald secondary. Cormorant Garamond SemiBold for display, Inter for
 body, JetBrains Mono for data. Subtle white grid overlay at 3.5%.
 
+
+
+## Cover
+
+Every document opens on the brand cover. It is unnumbered and carries no page
+chrome: centred logo, the company name in display type, the document's topic
+under it in forest green, the try link at the foot.
+
+```python
+d.cover(topic="Regulatory Approach", date="September 2026")
+d.end_page()
+```
+
+The topic is the document's subject in title case, set under `Amplifier Health`
+so the cover reads as one title: Amplifier Health, Regulatory Approach. The
+`confidential` string the document was built with prints at the very bottom, so
+an internal document says INTERNAL USE ONLY there without any extra argument.
+The try link is `try.amplifierhealth.com`, set with the host in the accent, the
+way the deck sets it. Do not change it per document.
 
 ## Imagery
 
