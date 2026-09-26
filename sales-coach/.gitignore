@@ -1,0 +1,21 @@
+# Credentials. Never commit these.
+pipeline/.env
+.env
+*.pem
+
+# Build output. Regenerate with `npm run build`.
+dist/
+
+# Anything the pipeline writes. These are recordings of real conversations
+# and the database built from them. They do not belong in a repository.
+sales-coach-home/
+*.db
+*.db-wal
+*.db-shm
+calls/
+prep/
+findings.md
+dataset.json
+
+node_modules/
+.DS_Store

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Coach</title>
+<meta name="description" content="Grade every sales call and email against a fixed rubric, then keep only the differences that separate closed won from closed lost.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23050505'/><path d='M8 21V11M14 21v-6M20 21V8M26 21v-9' stroke='%2322d3ee' stroke-width='2.6' stroke-linecap='round' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Athem Ventures · build log</p>
+    <h1>Sales Coach</h1>
+    <p class="sub">
+      Every call you have ever had is already recorded. Every email is already
+      in Gmail. Every outcome is already in the CRM. Nobody ever joins them up,
+      so the same mistake gets made for a year. This joins them up, grades every
+      call and every email against a fixed rubric, and keeps only the
+      differences that actually separate the deals you won from the ones you lost.
+    </p>
+    <div class="chips">
+      <span class="chip"><b>Fireflies</b> calls</span>
+      <span class="chip"><b>Gemini</b> tone-tagged transcripts</span>
+      <span class="chip"><b>Gmail</b> threads</span>
+      <span class="chip"><b>HubSpot</b> outcomes</span>
+      <span class="chip"><b>Jev</b> typed judgments</span>
+      <span class="chip"><b>SQLite</b> one file</span>
+    </div>
+  </header>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <section id="prompts">
+    <div class="section-head">
+      <span class="step">Part one</span>
+      <h2>The three prompts</h2>
+      <p class="lead">
+        Run them in order. The first builds the database, the second grades it,
+        the third turns the result into a plan for one specific call. Copy each
+        one straight into an agent with the connectors attached.
+      </p>
+    </div>
+    <div id="promptCards"></div>
+  </section>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <section id="workbench">
+    <div class="section-head">
+      <span class="step">Part two</span>
+      <h2>The workbench</h2>
+      <p class="lead">
+        This is prompt 2's comparison step, running here in the page. It loads a
+        demo book of business tagged the way Jev would tag it, then computes
+        which differences survive the guard. Drop in your own
+        <code>dataset.json</code> to run it against your real numbers. Nothing
+        leaves the browser.
+      </p>
+    </div>
+
+    <div class="databar" id="dataBar">
+      <div class="source" id="sourceLabel">Loading the demo book of business</div>
+      <div class="btn-row">
+        <button type="button" id="loadDemo">Reload demo</button>
+        <button type="button" id="pickFile">Load dataset.json</button>
+        <input type="file" id="fileInput" accept="application/json,.json" class="visually-hidden">
+      </div>
+    </div>
+    <div id="dataError"></div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><span class="dot"></span> Jev question · won against lost</div>
+        <div class="btn-row">
+          <button type="button" id="copyTable">Copy as TSV</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="jev">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th class="num">Won</th>
+              <th class="num">Lost</th>
+              <th>Spread</th>
+              <th class="num">Gap</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="minGap">Minimum gap <b id="minGapVal">15 pts</b></label>
+          <input type="range" id="minGap" min="0" max="50" step="1" value="15">
+        </div>
+        <div class="control">
+          <label for="minSample">Minimum sample <b id="minSampleVal">10</b></label>
+          <input type="range" id="minSample" min="2" max="80" step="1" value="10">
+        </div>
+        <div class="control">
+          <label for="alpha">Significance <b id="alphaVal">0.05</b></label>
+          <input type="range" id="alpha" min="1" max="50" step="1" value="5">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><span class="dot"></span> findings.md</div>
+        <div class="btn-row">
+          <button type="button" id="toggleStats">Show the working</button>
+          <button type="button" id="copyFindings">Copy</button>
+          <button type="button" id="downloadFindings">Download</button>
+        </div>
+      </div>
+      <pre class="md" id="findings"></pre>
+    </div>
+
+    <p class="note">
+      A question only becomes a pattern when all three guards clear: the gap is
+      at least the minimum, both groups have at least the minimum sample, and a
+      two-proportion test comes in under the significance level. On the demo
+      data the two flat questions stay flat even with the minimum gap dragged
+      to zero, because the significance test keeps rejecting them. They only
+      turn into advice once significance is pushed past 0.40, which is the
+      point at which you are no longer testing anything. That is the failure
+      this step exists to prevent, and it is worth seeing it happen.
+    </p>
+  </section>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <section id="prep">
+    <div class="section-head">
+      <span class="step">Part three</span>
+      <h2>Prep me for a call</h2>
+      <p class="lead">
+        Pick anyone in the book. The plan is built from what the workbench just
+        established plus the whole history with that person, so it says what has
+        actually worked on your calls rather than what a sales book says.
+      </p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><span class="dot"></span> Inputs</div>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label for="prospect">Prospect</label>
+            <select id="prospect"></select>
+          </div>
+          <div class="field">
+            <label for="rLinkedin">Their LinkedIn, in a line</label>
+            <textarea id="rLinkedin" rows="3" placeholder="Owner at Corvell Roofing in Denver, runs the sales side himself."></textarea>
+          </div>
+          <div class="field">
+            <label for="rCompany">The company site, in a line</label>
+            <textarea id="rCompany" rows="3" placeholder="Family owned since 2009. Free roof inspections anywhere in the Denver metro."></textarea>
+          </div>
+          <div class="field">
+            <label for="rNews">Recent news, one per line</label>
+            <textarea id="rNews" rows="3" placeholder="Hail season claims are running long in the metro."></textarea>
+          </div>
+          <div class="field">
+            <label for="rHooks">Openers, one per line</label>
+            <textarea id="rHooks" rows="3" placeholder="Ask how the hail backlog is running against his crew size."></textarea>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="primary" id="buildPrep">Build the call plan</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><span class="dot"></span> <span id="prepName">prep/[prospect].md</span></div>
+          <div class="btn-row">
+            <button type="button" id="copyPrep">Copy</button>
+            <button type="button" id="downloadPrep">Download</button>
+          </div>
+        </div>
+        <pre class="md" id="prepOut"></pre>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <section id="build">
+    <div class="section-head">
+      <span class="step">Part four</span>
+      <h2>Running it on your own calls</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <p>
+          The pipeline that fills <code>sales.db</code> lives in the repository
+          alongside this page. It needs five credentials: a Fireflies API key, a
+          Gemini API key, a Gmail OAuth token with read scope, a HubSpot private
+          app token, and a TypeSafe key for Jev.
+        </p>
+        <pre class="md"><span class="h"># once</span>
+cp pipeline/.env.example pipeline/.env   <span class="q"># then fill it in</span>
+
+<span class="h"># build the database from the last 12 months</span>
+node pipeline/run-prompt1.mjs
+
+<span class="h"># let Jev grade all of it, then write findings.md</span>
+node pipeline/run-prompt2.mjs
+
+<span class="h"># one page before a call</span>
+node pipeline/run-prompt3.mjs --prospect steve@example.com</pre>
+        <p class="note">
+          Every step is resumable. Audio already on disk is not downloaded
+          twice, calls already transcribed are not sent to Gemini twice, and an
+          artifact that already has an answer is not sent to Jev twice. Stopping
+          halfway through and starting again costs only the step it was on.
+        </p>
+        <p class="note">
+          Prompt 1 writes recordings of real customer conversations to
+          <code>~/sales-coach/</code>. It is one directory and one SQLite file,
+          which is also how you delete it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Built from a 60 second reel on replacing a 6,000 dollar sales coaching
+      course with three prompts. The demo book of business is synthetic and
+      contains no real person, call or email. It is generated to reproduce the
+      figures the reel shows, so the numbers on this page can be checked against
+      the source.
+    </p>
+  </footer>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

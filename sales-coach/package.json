@@ -1,0 +1,22 @@
+{
+  "name": "sales-coach",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Grade every sales call and email against a fixed rubric, then keep only the differences that separate closed won from closed lost.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "build": "node build.mjs",
+    "demo": "node data/generate-demo.mjs",
+    "serve": "node build.mjs && npx --yes http-server dist -p 8899 -c-1",
+    "prompt1": "node pipeline/run-prompt1.mjs",
+    "prompt2": "node pipeline/run-prompt2.mjs",
+    "prompt3": "node pipeline/run-prompt3.mjs",
+    "import": "node pipeline/import-dataset.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
