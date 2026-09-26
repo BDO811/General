@@ -15,11 +15,39 @@ import { renderPrep } from './engine/prep.js';
 
 const $ = (id) => document.getElementById(id);
 
-const PROMPTS = [
+const PROMPT_FILES = [
   { n: 1, title: 'Build the database', file: 'prompts/prompt-1-build-the-database.md' },
   { n: 2, title: 'Coach me with Jev', file: 'prompts/prompt-2-coach-me-with-jev.md' },
   { n: 3, title: 'Prep me for a call', file: 'prompts/prompt-3-prep-me-for-a-call.md' },
 ];
+
+/**
+ * The prompts, preferring the module `build.mjs` generates from prompts/*.md.
+ *
+ * The generated module is what ships. Fetching the markdown is the fallback
+ * for serving web/ straight off disk without a build, and it is also what
+ * keeps the two paths honest: both read the same files.
+ */
+async function loadPrompts() {
+  try {
+    const mod = await import('./prompts.generated.js');
+    if (Array.isArray(mod.PROMPTS) && mod.PROMPTS.length) return mod.PROMPTS;
+  } catch {
+    // No build present. Fall through and read the markdown directly.
+  }
+
+  return Promise.all(
+    PROMPT_FILES.map(async (p) => {
+      try {
+        const res = await fetch(p.file);
+        if (!res.ok) throw new Error(String(res.status));
+        return { ...p, text: (await res.text()).trim() };
+      } catch {
+        return { ...p, text: null };
+      }
+    })
+  );
+}
 
 const state = {
   dataset: null,
@@ -108,9 +136,10 @@ function highlight(md) {
 
 async function renderPrompts() {
   const host = $('promptCards');
+  const prompts = await loadPrompts();
   host.innerHTML = '';
 
-  for (const p of PROMPTS) {
+  for (const p of prompts) {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
@@ -118,23 +147,21 @@ async function renderPrompts() {
         <div class="card-title"><span class="dot"></span> Prompt ${p.n} · ${esc(p.title)}</div>
         <div class="btn-row"><button type="button">Copy</button></div>
       </div>
-      <pre class="prompt-body">Loading</pre>`;
+      <pre class="prompt-body"></pre>`;
     host.appendChild(card);
 
     const body = card.querySelector('.prompt-body');
     const button = card.querySelector('button');
 
-    try {
-      const res = await fetch(p.file);
-      if (!res.ok) throw new Error(String(res.status));
-      const text = (await res.text()).trim();
-      // Highlight the [bracketed] spans the reader is meant to replace.
-      body.innerHTML = esc(text).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>');
-      button.addEventListener('click', () => copy(text, button));
-    } catch {
+    if (!p.text) {
       body.textContent = `Could not load ${p.file}`;
       button.disabled = true;
+      continue;
     }
+
+    // Highlight the [bracketed] spans the reader is meant to replace.
+    body.innerHTML = esc(p.text).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>');
+    button.addEventListener('click', () => copy(p.text, button));
   }
 }
 
